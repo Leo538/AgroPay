@@ -43,6 +43,7 @@ export default function HomeScreen() {
   const [perfilAbierto, setPerfilAbierto] = useState(false);
 
   const esAgricultor = user?.role === 'agricultor';
+  const esComprador = user?.role === 'comprador';
   const nombre = (user?.nombre || '').trim() || 'Usuario';
   const apellido = (user?.apellido || '').trim();
   const telefono = user?.telefono || '—';
@@ -151,12 +152,68 @@ export default function HomeScreen() {
           </Pressable>
         ) : null}
 
+        {esComprador ? (
+          <>
+            <Pressable
+              style={({ pressed }) => [
+                styles.card,
+                styles.cardLink,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={() => navigation.navigate('Mercado')}
+              accessibilityRole="button"
+              accessibilityLabel="Mercado"
+            >
+              <View style={styles.cardRow}>
+                <Text style={styles.linkIcon} aria-hidden>
+                  🌽
+                </Text>
+                <View style={styles.cardRowMain}>
+                  <Text style={styles.cardTitle}>Ver productos</Text>
+                  <Text style={styles.cardSub} numberOfLines={2}>
+                    Explora el mercado, elige cantidad y arma tu pedido
+                  </Text>
+                </View>
+                <Text style={styles.chevronMuted} aria-hidden>
+                  ▸
+                </Text>
+              </View>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.card,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={() => navigation.navigate('MisPedidos')}
+              accessibilityRole="button"
+              accessibilityLabel="Mis pedidos"
+            >
+              <View style={styles.cardRow}>
+                <Text style={styles.linkIcon} aria-hidden>
+                  📦
+                </Text>
+                <View style={styles.cardRowMain}>
+                  <Text style={styles.cardTitle}>Mis pedidos</Text>
+                  <Text style={styles.cardSub} numberOfLines={2}>
+                    Pagar, subir comprobante o QR y revisar estado
+                  </Text>
+                </View>
+                <Text style={styles.chevronMuted} aria-hidden>
+                  ▸
+                </Text>
+              </View>
+            </Pressable>
+          </>
+        ) : null}
+
         <Text style={styles.hint}>
           {esAgricultor
             ? 'Cuando activemos el mercado, los compradores verán tu oferta.'
-            : `Pronto tendrás aquí más opciones para ${roleLabel(
-                user?.role
-              ).toLowerCase()}.`}
+            : esComprador
+              ? 'Compra con stock real: al pedir se reserva la cantidad hasta que subas tu comprobante.'
+              : `Pronto tendrás aquí más opciones para ${roleLabel(
+                  user?.role
+                ).toLowerCase()}.`}
         </Text>
 
         <Pressable

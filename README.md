@@ -29,6 +29,12 @@ App React Native (Expo) + API Node.js (Express) + MongoDB.
 
    **Productos (solo agricultor, con JWT):** prefijo `/api/products` — `GET /mine`, `POST /`, `PUT /:id`, `DELETE /:id` (header `Authorization: Bearer <token>`).
 
+   **Mercado y pedidos (solo comprador, con JWT):**
+   - `GET /api/market/products` — catálogo (solo ítems con stock mayor a 0; incluye datos básicos del vendedor).
+   - `GET /api/market/products/:id` — detalle para comprar.
+   - `POST /api/orders` — cuerpo `{ productId, cantidad, metodoPago? }` (reserva stock al crear).
+   - `GET /api/orders/mine`, `GET /api/orders/:id`, `PUT /api/orders/:id/comprobante` — lista, detalle y comprobante: JSON con `comprobanteUrl` (imagen, data URL como en productos) y/o `comprobanteQrPayload` (texto del QR escaneado). Al menos uno obligatorio.
+
    El registro pide **nombre, apellido, celular**, correo, contraseña y rol (`agricultor` / `comprador`). Si cambiaste el modelo de usuario, los documentos viejos en Mongo sin esos campos pueden seguir iniciando sesión, pero los **usuarios nuevos** deben registrarse otra vez con el formulario actual.
 
    **Importante:** MongoDB Atlas solo guarda datos. Si ves `ERR_CONNECTION_REFUSED` en el móvil o en web, el **backend tiene que estar encendido** en otra terminal. Sin eso no hay registro ni login.
@@ -59,4 +65,5 @@ App React Native (Expo) + API Node.js (Express) + MongoDB.
 - `frontend/` — Expo, `App.js` + `AuthContext` + sesión en `authStorage.js`
 - `frontend/src/screens/LoginScreen.js` — login y registro (al registrarte vuelves al login; la sesión solo se guarda al **iniciar sesión**)
 - `frontend/src/screens/HomeScreen.js` — bienvenida con nombre y datos básicos (base para vistas agricultor/comprador)
-- `frontend/src/navigation/AppNavigator.js` — reservado para cuando añadas más pantallas con React Navigation
+- `frontend/src/navigation/AppNavigator.js` — inicio, productos (agricultor), mercado y pedidos (comprador)
+- Comprador: **Ver productos** → detalle → **Crear pedido** → **Pago** (comprobante o captura de QR desde galería)

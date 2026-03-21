@@ -5,6 +5,8 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/product');
+const marketRoutes = require('./routes/market');
+const orderRoutes = require('./routes/order');
 
 if (!process.env.JWT_SECRET) {
   console.error(
@@ -32,6 +34,8 @@ app.get('/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/market', marketRoutes);
+app.use('/api/orders', orderRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Error' });
