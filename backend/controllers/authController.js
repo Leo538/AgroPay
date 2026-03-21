@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 
 const MIN_PASSWORD_LENGTH = 8;
+const MIN_NAME_LENGTH = 2;
 
 function isValidEmail(email) {
   const s = String(email || '').trim();
@@ -10,10 +11,41 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 }
 
+const PHONE_DIGITS = 10;
+
+function normalizePhone(p) {
+  return String(p || '').replace(/\D/g, '');
+}
+
+function isValidPhone(value) {
+  const n = normalizePhone(value);
+  return n.length === PHONE_DIGITS && /^[0-9]+$/.test(n);
+}
+
+function isValidPersonName(value) {
+  const t = String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ');
+  if (t.length < MIN_NAME_LENGTH || t.length > 60) return false;
+  if (/[0-9]/.test(t)) return false;
+  return /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ ]+$/.test(t);
+}
+
 function signToken(userId) {
   return jwt.sign({ userId: String(userId) }, process.env.JWT_SECRET, {
     expiresIn: '7d',
   });
+}
+
+function userPayload(user) {
+  return {
+    id: user._id,
+    email: user.email,
+    role: user.role,
+    nombre: user.nombre || '',
+    apellido: user.apellido || '',
+    telefono: user.telefono || '',
+  };
 }
 
 const ALLOWED_ROLES = ['agricultor', 'comprador'];
@@ -23,15 +55,48 @@ async function register(req, res) {
     const emailRaw = req.body?.email;
     const password = req.body?.password;
     const roleRaw = req.body?.role;
+    const nombreRaw = req.body?.nombre;
+    const apellidoRaw = req.body?.apellido;
+    const telefonoRaw = req.body?.telefono;
 
     const normalizedEmail =
       emailRaw != null ? String(emailRaw).toLowerCase().trim() : '';
     const role =
       roleRaw != null ? String(roleRaw).trim().toLowerCase() : '';
+    const nombre = nombreRaw != null ? String(nombreRaw).trim() : '';
+    const apellido = apellidoRaw != null ? String(apellidoRaw).trim() : '';
+    const telefonoNorm = normalizePhone(telefonoRaw);
 
-    if (!normalizedEmail || password == null || password === '' || !role) {
+    if (
+      !normalizedEmail ||
+      password == null ||
+      password === '' ||
+      !role ||
+      !nombre ||
+      !apellido ||
+      !telefonoNorm
+    ) {
       return res.status(400).json({
-        message: 'Completa correo, contraseña y tipo de usuario (agricultor o comprador).',
+        message:
+          'Completa nombre, apellido, celular, correo, contraseña y tipo de usuario.',
+      });
+    }
+    if (!isValidPersonName(nombre)) {
+      return res.status(400).json({
+        message:
+          'El nombre: solo letras y espacios, sin números ni caracteres especiales (mínimo 2 letras).',
+      });
+    }
+    if (!isValidPersonName(apellido)) {
+      return res.status(400).json({
+        message:
+          'El apellido: solo letras y espacios, sin números ni caracteres especiales (mínimo 2 letras).',
+      });
+    }
+    if (!isValidPhone(telefonoRaw)) {
+      return res.status(400).json({
+        message:
+          'El celular debe tener exactamente 10 dígitos, solo números (sin letras ni símbolos).',
       });
     }
     if (!ALLOWED_ROLES.includes(role)) {
@@ -59,20 +124,19 @@ async function register(req, res) {
 
     const hash = await bcrypt.hash(password, 10);
     const user = await User.create({
+      nombre,
+      apellido,
+      telefono: telefonoNorm,
       email: normalizedEmail,
       password: hash,
-      role: role,
+      role,
     });
 
     const token = signToken(user._id);
     return res.status(201).json({
       message: 'Usuario registrado',
       token,
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-      },
+      user: userPayload(user),
     });
   } catch (err) {
     console.error(err);
@@ -125,11 +189,7 @@ async function login(req, res) {
     return res.json({
       message: 'Bienvenido',
       token,
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-      },
+      user: userPayload(user),
     });
   } catch (err) {
     console.error(err);

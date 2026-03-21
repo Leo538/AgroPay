@@ -27,6 +27,8 @@ App React Native (Expo) + API Node.js (Express) + MongoDB.
 
    Por defecto escucha en **http://localhost:3000** (también en la red local, `0.0.0.0`). Rutas de auth: `POST /api/auth/register`, `POST /api/auth/login`.
 
+   El registro pide **nombre, apellido, celular**, correo, contraseña y rol (`agricultor` / `comprador`). Si cambiaste el modelo de usuario, los documentos viejos en Mongo sin esos campos pueden seguir iniciando sesión, pero los **usuarios nuevos** deben registrarse otra vez con el formulario actual.
+
    **Importante:** MongoDB Atlas solo guarda datos. Si ves `ERR_CONNECTION_REFUSED` en el móvil o en web, el **backend tiene que estar encendido** en otra terminal. Sin eso no hay registro ni login.
 
 3. Comprueba salud: abre en el navegador `http://localhost:3000/health` (debe responder `{"ok":true}`).
@@ -49,5 +51,8 @@ App React Native (Expo) + API Node.js (Express) + MongoDB.
 
 ## Estructura
 
-- `backend/` — Express, Mongoose, JWT, rutas `/api/auth`
-- `frontend/` — Expo, pantalla login/registro en `src/screens/LoginScreen.js`
+- `backend/` — Express, Mongoose, JWT, modelo `User` (nombre, apellido, telefono, email, role), rutas `/api/auth`
+- `frontend/` — Expo, `App.js` + `AuthContext` + sesión en `authStorage.js`
+- `frontend/src/screens/LoginScreen.js` — login y registro (al registrarte vuelves al login; la sesión solo se guarda al **iniciar sesión**)
+- `frontend/src/screens/HomeScreen.js` — bienvenida con nombre y datos básicos (base para vistas agricultor/comprador)
+- `frontend/src/navigation/AppNavigator.js` — reservado para cuando añadas más pantallas con React Navigation

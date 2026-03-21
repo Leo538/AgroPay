@@ -1,15 +1,9 @@
 import { getExpoGoProjectConfig } from 'expo';
 import { Platform } from 'react-native';
+import { normalizePhone } from '../utils/validation';
 
 const API_PORT = process.env.EXPO_PUBLIC_API_PORT || '3000';
 
-/**
- * Orden:
- * 1) EXPO_PUBLIC_API_URL en .env (reinicia Expo tras cambiarlo)
- * 2) Expo Go: misma máquina que Metro (IP que ves en exp://192.168.x.x:8081)
- * 3) Android emulador: 10.0.2.2
- * 4) Web / iOS simulador: localhost
- */
 function resolveApiBaseUrl() {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
   if (fromEnv) {
@@ -73,7 +67,6 @@ async function requestJson(path, body) {
 /**
  * @param {string} email
  * @param {string} password
- * @returns {Promise<object>}
  */
 export async function login(email, password) {
   return requestJson('/api/auth/login', {
@@ -83,15 +76,21 @@ export async function login(email, password) {
 }
 
 /**
- * @param {string} email
- * @param {string} password
- * @param {'agricultor' | 'comprador'} role
- * @returns {Promise<object>}
+ * @param {object} p
+ * @param {string} p.nombre
+ * @param {string} p.apellido
+ * @param {string} p.telefono
+ * @param {string} p.email
+ * @param {string} p.password
+ * @param {'agricultor' | 'comprador'} p.role
  */
-export async function register(email, password, role) {
+export async function register(p) {
   return requestJson('/api/auth/register', {
-    email: email.trim(),
-    password,
-    role,
+    nombre: String(p.nombre || '').trim(),
+    apellido: String(p.apellido || '').trim(),
+    telefono: normalizePhone(p.telefono),
+    email: String(p.email || '').trim(),
+    password: p.password,
+    role: p.role,
   });
 }
