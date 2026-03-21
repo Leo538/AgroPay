@@ -77,10 +77,15 @@ export default function QrScannerModal({ visible, onClose, onScanned }) {
               onBarcodeScanned={handleBarcode}
             />
             <View
-              style={[styles.hud, { paddingBottom: Math.max(insets.bottom, 16) }]}
-              pointerEvents="box-none"
+              style={[
+                styles.hud,
+                {
+                  paddingBottom: Math.max(insets.bottom, 16),
+                  pointerEvents: 'box-none',
+                },
+              ]}
             >
-              <View style={styles.frame} pointerEvents="none" />
+              <View style={[styles.frame, { pointerEvents: 'none' }]} />
               <Text style={styles.hint}>
                 Encuadra el QR de pago dentro del recuadro
               </Text>

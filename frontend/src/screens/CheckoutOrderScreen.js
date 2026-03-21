@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,9 +13,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QrScannerModal from '../components/QrScannerModal';
+import { useDataUrlComprobanteUri } from '../hooks/useDataUrlComprobanteUri';
 import * as orderApi from '../services/orderService';
 import { alertMessage } from '../utils/confirmDialog';
-import { pickImageDataUrl, takePhotoDataUrl } from '../utils/pickImageDataUrl';
+import { colorEstadoPedido, labelEstadoPedido } from '../utils/orderEstado';
+import { pickImageDataUrl } from '../utils/pickImageDataUrl';
 
 const COLORS = {
   greenDark: '#2E7D32',
@@ -26,7 +28,7 @@ const COLORS = {
 };
 
 const METODO_LABEL = {
-  transferencia: 'Transferencia',
+  transferencia: 'Transferencia bancaria',
   efectivo: 'Efectivo',
   otro: 'Otro',
 };
@@ -53,6 +55,8 @@ export default function CheckoutOrderScreen({ route, navigation }) {
   const [previewQr, setPreviewQr] = useState('');
   const [qrScannerVisible, setQrScannerVisible] = useState(false);
   const [sending, setSending] = useState(false);
+  const [previewImgError, setPreviewImgError] = useState(false);
+  const [orderCompImgError, setOrderCompImgError] = useState(false);
 
   const load = useCallback(async () => {
     if (!orderId) return;
@@ -77,6 +81,37 @@ export default function CheckoutOrderScreen({ route, navigation }) {
     }, [load])
   );
 
+  const savedRaw = order?.comprobanteUrl;
+  const savedIsData = savedRaw?.startsWith('data:image');
+  const { resolvedUri: savedFileUri, busy: savedCompBusy } = useDataUrlComprobanteUri(
+    savedIsData ? savedRaw : null,
+    order?._id ? String(order._id) : 'ord'
+  );
+  const orderCompDisplay = savedRaw
+    ? savedIsData
+      ? savedFileUri
+      : savedRaw
+    : null;
+
+  const prevIsData = previewUrl.startsWith('data:image');
+  const { resolvedUri: previewFileUri, busy: previewCompBusy } = useDataUrlComprobanteUri(
+    prevIsData ? previewUrl : null,
+    'preview_local'
+  );
+  const previewDisplayUri = previewUrl
+    ? prevIsData
+      ? previewFileUri
+      : previewUrl
+    : null;
+
+  useEffect(() => {
+    setPreviewImgError(false);
+  }, [previewDisplayUri]);
+
+  useEffect(() => {
+    setOrderCompImgError(false);
+  }, [orderCompDisplay]);
+
   function abrirEscanerQr() {
     if (Platform.OS === 'web') {
       alertMessage(
@@ -93,11 +128,6 @@ export default function CheckoutOrderScreen({ route, navigation }) {
     if (dataUrl) setPreviewUrl(dataUrl);
   }
 
-  async function tomarFotoCamara() {
-    const dataUrl = await takePhotoDataUrl();
-    if (dataUrl) setPreviewUrl(dataUrl);
-  }
-
   async function enviarComprobante() {
     if (!order) return;
     const urlOk = previewUrl.trim().length > 0;
@@ -105,7 +135,7 @@ export default function CheckoutOrderScreen({ route, navigation }) {
     if (!urlOk && !qrOk) {
       Alert.alert(
         'Comprobante',
-        'Escanea un QR 📷, sube una imagen 🧾 o toma una foto del comprobante.'
+        'Escanea un QR 📷 o sube una imagen 🧾 del comprobante.'
       );
       return;
     }
@@ -114,14 +144,30 @@ export default function CheckoutOrderScreen({ route, navigation }) {
       const data = await orderApi.uploadOrderComprobante(String(order._id), {
         comprobanteUrl: previewUrl.trim(),
         comprobanteQrPayload: previewQr.trim(),
+        montoDeclarado: undefined,
+        referenciaDeclarada: undefined,
       });
       setOrder(data.order);
       setPreviewUrl('');
       setPreviewQr('');
-      Alert.alert(
-        'Listo',
-        'Comprobante enviado. El vendedor podrá verificar tu pago.'
-      );
+      const next = data.order;
+      if (next.estado === 'pre_validado') {
+        Alert.alert(
+          'Pre-validado',
+          'El sistema verificó monto, referencia y duplicados. El vendedor confirmará el pago pronto.'
+        );
+      } else if (next.estado === 'comprobante_enviado') {
+        Alert.alert(
+          'Comprobante enviado',
+          'No se pudo leer el importe en la imagen; el vendedor revisará el comprobante y decidirá.'
+        );
+      } else if (next.estado === 'rechazado') {
+        Alert.alert(
+          'No validado',
+          next.rechazoMotivo ||
+            'Revisa el comprobante, la referencia y vuelve a intentar con un nuevo pedido.'
+        );
+      }
     } catch (e) {
       Alert.alert(
         'Error',
@@ -163,7 +209,9 @@ export default function CheckoutOrderScreen({ route, navigation }) {
   const vendedor = farmer
     ? `${farmer.nombre || ''} ${farmer.apellido || ''}`.trim()
     : 'Vendedor';
-  const pendiente = order.estado === 'pendiente_comprobante';
+  const pendiente =
+    order.estado === 'pendiente' || order.estado === 'pendiente_comprobante';
+  const estadoColor = colorEstadoPedido(order.estado);
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -196,15 +244,24 @@ export default function CheckoutOrderScreen({ route, navigation }) {
           ) : null}
         </View>
 
+        <View style={[styles.estadoPill, { borderColor: estadoColor }]}>
+          <Text style={[styles.estadoPillText, { color: estadoColor }]}>
+            Estado: {labelEstadoPedido(order.estado)}
+          </Text>
+        </View>
+
         <View style={styles.infoBox}>
           <Text style={styles.infoTitle}>Tu compra en pasos</Text>
           <Text style={styles.infoText}>
             1 · Ingresa a la app{'\n'}
-            2 · Ve la lista de productos 🌽{'\n'}
-            3 · Selecciona un producto{'\n'}
-            4 · Crea el pedido{'\n'}
-            5 · Realiza el pago 💳{'\n'}
-            6 · Abajo envía comprobante: escanea QR 📷, sube imagen 🧾 o toma foto
+            2 · Lista de productos 🌽{'\n'}
+            3 · Selecciona producto{'\n'}
+            4 · Crea pedido{'\n'}
+            5 · Paga 💳{'\n'}
+            6 · Comprobante: QR 📷 o imagen 🧾{'\n'}
+            7 · Importe y referencia salen del comprobante (OCR / QR), plantilla Pichincha{'\n'}
+            8 · Estado del pedido: pendiente → pre-validado → pagado → entregado (o
+            rechazado)
           </Text>
         </View>
 
@@ -212,14 +269,14 @@ export default function CheckoutOrderScreen({ route, navigation }) {
           <>
             <Text style={styles.sectionTitle}>6 · Enviar comprobante</Text>
             <Text style={styles.sectionSub}>
-              Necesitas al menos una opción: QR leído, imagen desde galería o foto
-              con la cámara.
+              Pago solo por transferencia. Usa el comprobante Banco Pichincha: sube
+              una imagen o escanea el QR; el sistema lee monto y referencia.
             </Text>
 
             <Pressable style={styles.actionQr} onPress={abrirEscanerQr}>
               <Text style={styles.actionQrText}>Escanear código QR 📷</Text>
               <Text style={styles.hintOnDark}>
-                Lee el QR de pago (Yape, transferencia, etc.)
+                Lee el QR del comprobante de transferencia (p. ej. Banco Pichincha)
               </Text>
             </Pressable>
 
@@ -227,13 +284,6 @@ export default function CheckoutOrderScreen({ route, navigation }) {
               <Text style={styles.actionGalleryText}>Subir imagen 🧾</Text>
               <Text style={styles.hintOnYellow}>
                 Captura de pantalla, voucher o foto guardada
-              </Text>
-            </Pressable>
-
-            <Pressable style={styles.actionCamera} onPress={tomarFotoCamara}>
-              <Text style={styles.actionCameraText}>Tomar foto con la cámara</Text>
-              <Text style={styles.hintOnWhite}>
-                Fotografía el comprobante o el QR en otra pantalla
               </Text>
             </Pressable>
 
@@ -255,7 +305,23 @@ export default function CheckoutOrderScreen({ route, navigation }) {
 
             {previewUrl ? (
               <View style={styles.imgPreviewWrap}>
-                <Image source={{ uri: previewUrl }} style={styles.preview} />
+                {prevIsData && previewCompBusy && !previewDisplayUri ? (
+                  <View style={styles.previewLoading}>
+                    <ActivityIndicator size="large" color={COLORS.greenDark} />
+                    <Text style={styles.previewLoadingText}>Preparando vista previa…</Text>
+                  </View>
+                ) : previewDisplayUri && !previewImgError ? (
+                  <Image
+                    source={{ uri: previewDisplayUri }}
+                    style={styles.preview}
+                    resizeMode="contain"
+                    onError={() => setPreviewImgError(true)}
+                  />
+                ) : (
+                  <Text style={styles.previewFail}>
+                    No se pudo mostrar la vista previa. Prueba otra imagen o reduce el tamaño.
+                  </Text>
+                )}
                 <Pressable
                   style={styles.quitarImg}
                   onPress={() => setPreviewUrl('')}
@@ -266,7 +332,7 @@ export default function CheckoutOrderScreen({ route, navigation }) {
             ) : (
               <View style={styles.previewEmpty}>
                 <Text style={styles.previewEmptyText}>
-                  Sin imagen aún · usa galería o cámara
+                  Sin imagen aún · usa «Subir imagen»
                 </Text>
               </View>
             )}
@@ -290,22 +356,112 @@ export default function CheckoutOrderScreen({ route, navigation }) {
             />
           </>
         ) : (
-          <View style={styles.doneBox}>
-            <Text style={styles.doneTitle}>✓ Comprobante enviado</Text>
-            <Text style={styles.doneText}>
-              Tu pago quedó registrado para revisión. Puedes seguir comprando en
-              el mercado.
-            </Text>
+          <View style={styles.seguimientoBox}>
+            {order.estado === 'pre_validado' ? (
+              <>
+                <Text style={styles.doneTitle}>✓ Pre-validado por el sistema</Text>
+                <Text style={styles.doneText}>
+                  Monto, referencia y duplicados revisados automáticamente. El
+                  agricultor confirmará o rechazará el pago.
+                </Text>
+              </>
+            ) : null}
+            {order.estado === 'comprobante_enviado' ? (
+              <>
+                <Text style={styles.doneTitle}>Comprobante enviado</Text>
+                <Text style={styles.doneText}>
+                  El vendedor revisará la imagen y los datos. Cuando confirme, el
+                  estado pasará a pagado.
+                </Text>
+              </>
+            ) : null}
+            {order.estado === 'rechazado' ? (
+              <>
+                <Text style={styles.rejectTitle}>Pedido rechazado</Text>
+                <Text style={styles.rejectMeta}>
+                  {order.rechazadoPor === 'sistema'
+                    ? 'Validación automática'
+                    : 'Vendedor'}
+                </Text>
+                <Text style={styles.rejectText}>
+                  {order.rechazoMotivo || '—'}
+                </Text>
+                <Text style={styles.doneText}>
+                  El stock de tu pedido fue devuelto al mercado. Puedes crear un
+                  pedido nuevo corrigiendo los datos.
+                </Text>
+              </>
+            ) : null}
+            {order.estado === 'pagado' ? (
+              <>
+                <Text style={styles.doneTitle}>✓ Pagado</Text>
+                <Text style={styles.doneText}>
+                  El vendedor confirmó tu pago. Pronto podrá marcar la entrega.
+                </Text>
+              </>
+            ) : null}
+            {order.estado === 'entregado' ? (
+              <>
+                <Text style={styles.doneTitle}>✓ Entregado</Text>
+                <Text style={styles.doneText}>
+                  El vendedor marcó este pedido como entregado. ¡Gracias por usar
+                  AgroPay!
+                </Text>
+              </>
+            ) : null}
+
+            {order.datosExtraidos &&
+            (order.datosExtraidos.monto != null ||
+              order.datosExtraidos.referencia) ? (
+              <View style={styles.datosExt}>
+                <Text style={styles.datosExtTitle}>Datos detectados / enviados</Text>
+                {order.datosExtraidos.monto != null ? (
+                  <Text style={styles.datosExtRow}>
+                    Monto: ${Number(order.datosExtraidos.monto).toFixed(2)}
+                  </Text>
+                ) : null}
+                {order.datosExtraidos.referencia ? (
+                  <Text selectable style={styles.datosExtRow}>
+                    Ref.: {order.datosExtraidos.referencia}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+
+            {order.validacionSistema?.mensajes?.length ? (
+              <View style={styles.valList}>
+                <Text style={styles.valListTitle}>Validación automática</Text>
+                {order.validacionSistema.mensajes.map((m, i) => (
+                  <Text key={i} style={styles.valListItem}>
+                    • {m}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+
             {order.comprobanteUrl ? (
-              <Image
-                source={{ uri: order.comprobanteUrl }}
-                style={styles.previewDone}
-              />
+              savedIsData && savedCompBusy && !orderCompDisplay ? (
+                <View style={styles.previewDoneLoading}>
+                  <ActivityIndicator color={COLORS.greenDark} />
+                  <Text style={styles.previewLoadingText}>Cargando comprobante…</Text>
+                </View>
+              ) : orderCompDisplay && !orderCompImgError ? (
+                <Image
+                  source={{ uri: orderCompDisplay }}
+                  style={styles.previewDone}
+                  resizeMode="contain"
+                  onError={() => setOrderCompImgError(true)}
+                />
+              ) : (
+                <Text style={styles.previewFail}>
+                  No se pudo mostrar el comprobante adjunto.
+                </Text>
+              )
             ) : null}
             {order.comprobanteQrPayload ? (
               <View style={styles.qrDoneBox}>
-                <Text style={styles.qrDoneLabel}>Datos del QR registrados</Text>
-                <Text selectable style={styles.qrDoneText} numberOfLines={6}>
+                <Text style={styles.qrDoneLabel}>QR / payload</Text>
+                <Text selectable style={styles.qrDoneText} numberOfLines={8}>
                   {order.comprobanteQrPayload}
                 </Text>
               </View>
@@ -348,6 +504,16 @@ const styles = StyleSheet.create({
     color: COLORS.greenDark,
     marginBottom: 16,
   },
+  estadoPill: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 2,
+    backgroundColor: COLORS.white,
+    marginBottom: 14,
+  },
+  estadoPillText: { fontSize: 14, fontWeight: '800' },
   card: {
     backgroundColor: COLORS.white,
     borderRadius: 16,
@@ -436,39 +602,17 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '600',
   },
-  hintOnWhite: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 6,
-    lineHeight: 18,
-  },
   actionGallery: {
     backgroundColor: COLORS.yellow,
     borderRadius: 14,
     paddingVertical: 16,
     paddingHorizontal: 16,
-    marginBottom: 10,
+    marginBottom: 16,
   },
   actionGalleryText: {
     color: COLORS.greenDark,
     fontSize: 17,
     fontWeight: '800',
-    textAlign: 'center',
-  },
-  actionCamera: {
-    backgroundColor: COLORS.white,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: COLORS.greenDark,
-  },
-  actionCameraText: {
-    color: COLORS.greenDark,
-    fontSize: 16,
-    fontWeight: '700',
     textAlign: 'center',
   },
   qrBox: {
@@ -497,9 +641,33 @@ const styles = StyleSheet.create({
   imgPreviewWrap: { marginBottom: 12 },
   preview: {
     width: '100%',
+    minHeight: 200,
+    height: 240,
+    borderRadius: 14,
+    backgroundColor: COLORS.grayLight,
+  },
+  previewLoading: {
+    width: '100%',
     height: 200,
     borderRadius: 14,
     backgroundColor: COLORS.grayLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewLoadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+  },
+  previewFail: {
+    fontSize: 14,
+    color: '#C62828',
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   quitarImg: {
     alignSelf: 'center',
@@ -534,14 +702,53 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.greenDark,
   },
-  doneBox: {
+  seguimientoBox: {
     backgroundColor: COLORS.white,
     borderRadius: 16,
     padding: 18,
     marginBottom: 20,
     borderWidth: 2,
-    borderColor: COLORS.greenDark,
+    borderColor: '#C8E6C9',
   },
+  rejectTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#C62828',
+    marginBottom: 4,
+  },
+  rejectMeta: { fontSize: 13, color: COLORS.textMuted, marginBottom: 8 },
+  rejectText: {
+    fontSize: 15,
+    color: '#212121',
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  datosExt: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#F1F8E9',
+    borderRadius: 12,
+  },
+  datosExtTitle: {
+    fontWeight: '700',
+    color: COLORS.greenDark,
+    marginBottom: 6,
+    fontSize: 14,
+  },
+  datosExtRow: { fontSize: 14, color: '#212121', marginBottom: 4 },
+  valList: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#E3F2FD',
+    borderRadius: 12,
+  },
+  valListTitle: {
+    fontWeight: '700',
+    color: '#1565C0',
+    marginBottom: 8,
+    fontSize: 14,
+  },
+  valListItem: { fontSize: 13, color: COLORS.textMuted, lineHeight: 20, marginBottom: 4 },
   doneTitle: {
     fontSize: 18,
     fontWeight: '800',
@@ -551,10 +758,20 @@ const styles = StyleSheet.create({
   doneText: { fontSize: 14, color: COLORS.textMuted, lineHeight: 22 },
   previewDone: {
     width: '100%',
-    height: 180,
+    minHeight: 200,
+    height: 260,
     borderRadius: 12,
     marginTop: 14,
     backgroundColor: COLORS.grayLight,
+  },
+  previewDoneLoading: {
+    width: '100%',
+    height: 200,
+    marginTop: 14,
+    borderRadius: 12,
+    backgroundColor: COLORS.grayLight,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   qrDoneBox: {
     marginTop: 14,

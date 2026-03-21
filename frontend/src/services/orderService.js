@@ -63,7 +63,12 @@ export async function fetchOrder(id) {
 
 /**
  * @param {string} id
- * @param {{ comprobanteUrl?: string, comprobanteQrPayload?: string }} payload
+ * @param {{
+ *   comprobanteUrl?: string,
+ *   comprobanteQrPayload?: string,
+ *   montoDeclarado?: string | number,
+ *   referenciaDeclarada?: string,
+ * }} payload
  */
 export async function uploadOrderComprobante(id, payload) {
   const res = await fetch(`${API_BASE_URL}/api/orders/${id}/comprobante`, {
@@ -72,7 +77,50 @@ export async function uploadOrderComprobante(id, payload) {
     body: JSON.stringify({
       comprobanteUrl: payload?.comprobanteUrl || '',
       comprobanteQrPayload: payload?.comprobanteQrPayload || '',
+      montoDeclarado: payload?.montoDeclarado,
+      referenciaDeclarada: payload?.referenciaDeclarada,
     }),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchFarmerOrders() {
+  const res = await fetch(`${API_BASE_URL}/api/farmer/orders`, {
+    method: 'GET',
+    headers: await authJsonHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchFarmerOrder(id) {
+  const res = await fetch(`${API_BASE_URL}/api/farmer/orders/${id}`, {
+    method: 'GET',
+    headers: await authJsonHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function farmerConfirmarPago(id) {
+  const res = await fetch(`${API_BASE_URL}/api/farmer/orders/${id}/confirmar`, {
+    method: 'PUT',
+    headers: await authJsonHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function farmerRechazarPedido(id, motivo) {
+  const res = await fetch(`${API_BASE_URL}/api/farmer/orders/${id}/rechazar`, {
+    method: 'PUT',
+    headers: await authJsonHeaders(),
+    body: JSON.stringify({ motivo }),
+  });
+  return handleResponse(res);
+}
+
+export async function farmerMarcarEntregado(id) {
+  const res = await fetch(`${API_BASE_URL}/api/farmer/orders/${id}/entregado`, {
+    method: 'PUT',
+    headers: await authJsonHeaders(),
   });
   return handleResponse(res);
 }

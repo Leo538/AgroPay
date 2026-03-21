@@ -22,12 +22,6 @@ const COLORS = {
   textMuted: '#424242',
 };
 
-const METODOS = [
-  { key: 'transferencia', label: 'Transferencia' },
-  { key: 'efectivo', label: 'Efectivo' },
-  { key: 'otro', label: 'Otro' },
-];
-
 function labelUnidad(key) {
   const m = {
     kg: 'Kilogramo (kg)',
@@ -48,7 +42,6 @@ export default function BuyerProductDetailScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [cantidad, setCantidad] = useState(1);
-  const [metodoPago, setMetodoPago] = useState('transferencia');
 
   const load = useCallback(async () => {
     if (!productId) return;
@@ -100,7 +93,7 @@ export default function BuyerProductDetailScreen({ route, navigation }) {
       const { order } = await orderApi.createOrder({
         productId: product._id,
         cantidad,
-        metodoPago,
+        metodoPago: 'transferencia',
       });
       navigation.replace('PagoPedido', { orderId: order._id });
     } catch (e) {
@@ -198,27 +191,12 @@ export default function BuyerProductDetailScreen({ route, navigation }) {
         </View>
         <Text style={styles.stockHint}>Máximo según stock: {max}</Text>
 
-        <Text style={styles.label}>Cómo pagarás (referencia)</Text>
-        <View style={styles.chips}>
-          {METODOS.map((m) => (
-            <Pressable
-              key={m.key}
-              style={[
-                styles.chip,
-                metodoPago === m.key && styles.chipOn,
-              ]}
-              onPress={() => setMetodoPago(m.key)}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  metodoPago === m.key && styles.chipTextOn,
-                ]}
-              >
-                {m.label}
-              </Text>
-            </Pressable>
-          ))}
+        <View style={styles.transferOnlyBox}>
+          <Text style={styles.transferOnlyTitle}>Forma de pago</Text>
+          <Text style={styles.transferOnlyText}>
+            Solo transferencia bancaria. Por seguridad no aceptamos efectivo ni otros métodos en la
+            app; en el siguiente paso subirás el comprobante o el QR del banco.
+          </Text>
         </View>
 
         <View style={styles.totalBox}>
@@ -227,8 +205,8 @@ export default function BuyerProductDetailScreen({ route, navigation }) {
         </View>
 
         <Text style={styles.legal}>
-          Al confirmar se reserva el stock y podrás subir el comprobante o captura
-          del pago (transferencia, QR, etc.) en el siguiente paso.
+          Al confirmar se reserva el stock y podrás subir la captura o el QR del comprobante de
+          transferencia en el siguiente paso.
         </Text>
 
         <Pressable
@@ -336,26 +314,26 @@ const styles = StyleSheet.create({
     marginTop: 6,
     paddingHorizontal: 20,
   },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingHorizontal: 20,
-  },
-  chip: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 20,
+  transferOnlyBox: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    padding: 14,
     backgroundColor: COLORS.white,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
   },
-  chipOn: {
-    borderColor: COLORS.greenDark,
-    backgroundColor: '#E8F5E9',
+  transferOnlyTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.greenDark,
+    marginBottom: 8,
   },
-  chipText: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
-  chipTextOn: { color: COLORS.greenDark },
+  transferOnlyText: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    lineHeight: 21,
+  },
   totalBox: {
     marginHorizontal: 20,
     marginTop: 24,

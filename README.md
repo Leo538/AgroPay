@@ -33,7 +33,9 @@ App React Native (Expo) + API Node.js (Express) + MongoDB.
    - `GET /api/market/products` — catálogo (solo ítems con stock mayor a 0; incluye datos básicos del vendedor).
    - `GET /api/market/products/:id` — detalle para comprar.
    - `POST /api/orders` — cuerpo `{ productId, cantidad, metodoPago? }` (reserva stock al crear).
-   - `GET /api/orders/mine`, `GET /api/orders/:id`, `PUT /api/orders/:id/comprobante` — lista, detalle y comprobante: JSON con `comprobanteUrl` (imagen, data URL como en productos) y/o `comprobanteQrPayload` (texto del QR escaneado). Al menos uno obligatorio.
+   - `GET /api/orders/mine`, `GET /api/orders/:id`, `PUT /api/orders/:id/comprobante` — el comprador envía `comprobanteUrl` y/o `comprobanteQrPayload`, más opcionalmente `montoDeclarado` y `referenciaDeclarada`. Con **imagen** (`data:image/...` JPEG/PNG/GIF/WebP) se comprueban cabeceras binarias; el **monto del formulario no sustituye** al leído por OCR/QR. Si monto+ref+coinciden y no hay duplicado → **`pre_validado`**; si hay imagen, ref OK y sin duplicado pero **no** se pudo leer el monto del comprobante → **`comprobante_enviado`** (el agricultor revisa); en el resto de fallos → **`rechazado`** (sistema) y **restituye stock**.
+   - **Estados del pedido:** `pendiente` → `pre_validado` o `comprobante_enviado` → `pagado` → `entregado`, o `rechazado` (sistema o agricultor).
+   - **Agricultor (JWT):** prefijo `/api/farmer/orders` — `GET /` (lista), `GET /:id`, `PUT /:id/confirmar` (a `pagado`), `PUT /:id/rechazar` (body `{ motivo }`, a `rechazado`, restituye stock), `PUT /:id/entregado` (a `entregado`). OCR de imagen: campo `ocrResumen` reservado; hoy solo mensaje informativo si solo hay imagen.
 
    El registro pide **nombre, apellido, celular**, correo, contraseña y rol (`agricultor` / `comprador`). Si cambiaste el modelo de usuario, los documentos viejos en Mongo sin esos campos pueden seguir iniciando sesión, pero los **usuarios nuevos** deben registrarse otra vez con el formulario actual.
 
@@ -66,4 +68,7 @@ App React Native (Expo) + API Node.js (Express) + MongoDB.
 - `frontend/src/screens/LoginScreen.js` — login y registro (al registrarte vuelves al login; la sesión solo se guarda al **iniciar sesión**)
 - `frontend/src/screens/HomeScreen.js` — bienvenida con nombre y datos básicos (base para vistas agricultor/comprador)
 - `frontend/src/navigation/AppNavigator.js` — inicio, productos (agricultor), mercado y pedidos (comprador)
-- Comprador: **Ver productos** → detalle → **Crear pedido** → **Pago** (comprobante o captura de QR desde galería)
+- Comprador: mercado → pedido → pago → comprobante (QR / imagen / cámara + monto y referencia si hace falta) → estados en **Mis pedidos**.
+- Agricultor: **Pedidos recibidos** → detalle → confirmar pago, rechazar o marcar entregado.
+
+**Migración MongoDB:** si tenías pedidos con `pendiente_comprobante` / `comprobante_enviado`, actualízalos a `pendiente` / `pre_validado` o borra la colección `orders` en desarrollo.

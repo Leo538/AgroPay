@@ -2,6 +2,8 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import BuyerProductDetailScreen from '../screens/BuyerProductDetailScreen';
 import CheckoutOrderScreen from '../screens/CheckoutOrderScreen';
+import FarmerOrderDetailScreen from '../screens/FarmerOrderDetailScreen';
+import FarmerOrdersScreen from '../screens/FarmerOrdersScreen';
 import HomeScreen from '../screens/HomeScreen';
 import MarketScreen from '../screens/MarketScreen';
 import MyOrdersScreen from '../screens/MyOrdersScreen';
@@ -48,6 +50,16 @@ export default function AppNavigator() {
         name="MisPedidos"
         component={MyOrdersScreen}
         options={{ title: '📦 Mis pedidos' }}
+      />
+      <Stack.Screen
+        name="PedidosRecibidos"
+        component={FarmerOrdersScreen}
+        options={{ title: '🛒 Pedidos recibidos' }}
+      />
+      <Stack.Screen
+        name="DetallePedidoAgricultor"
+        component={FarmerOrderDetailScreen}
+        options={{ title: 'Detalle del pedido' }}
       />
     </Stack.Navigator>
   );

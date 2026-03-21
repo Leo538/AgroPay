@@ -125,31 +125,57 @@ export default function HomeScreen() {
         </Pressable>
 
         {esAgricultor ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.card,
-              styles.cardLink,
-              pressed && styles.cardPressed,
-            ]}
-            onPress={() => navigation.navigate('Productos')}
-            accessibilityRole="button"
-            accessibilityLabel="Mis productos"
-          >
-            <View style={styles.cardRow}>
-              <Text style={styles.linkIcon} aria-hidden>
-                🌽
-              </Text>
-              <View style={styles.cardRowMain}>
-                <Text style={styles.cardTitle}>Mis productos</Text>
-                <Text style={styles.cardSub} numberOfLines={2}>
-                  Publicar, editar o quitar lo que ofreces
+          <>
+            <Pressable
+              style={({ pressed }) => [
+                styles.card,
+                styles.cardLink,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={() => navigation.navigate('Productos')}
+              accessibilityRole="button"
+              accessibilityLabel="Mis productos"
+            >
+              <View style={styles.cardRow}>
+                <Text style={styles.linkIcon} aria-hidden>
+                  🌽
+                </Text>
+                <View style={styles.cardRowMain}>
+                  <Text style={styles.cardTitle}>Mis productos</Text>
+                  <Text style={styles.cardSub} numberOfLines={2}>
+                    Publicar, editar o quitar lo que ofreces
+                  </Text>
+                </View>
+                <Text style={styles.chevronMuted} aria-hidden>
+                  ▸
                 </Text>
               </View>
-              <Text style={styles.chevronMuted} aria-hidden>
-                ▸
-              </Text>
-            </View>
-          </Pressable>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.card,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={() => navigation.navigate('PedidosRecibidos')}
+              accessibilityRole="button"
+              accessibilityLabel="Pedidos recibidos"
+            >
+              <View style={styles.cardRow}>
+                <Text style={styles.linkIcon} aria-hidden>
+                  🛒
+                </Text>
+                <View style={styles.cardRowMain}>
+                  <Text style={styles.cardTitle}>Pedidos recibidos</Text>
+                  <Text style={styles.cardSub} numberOfLines={2}>
+                    Ver comprobantes, validación del sistema y confirmar pagos
+                  </Text>
+                </View>
+                <Text style={styles.chevronMuted} aria-hidden>
+                  ▸
+                </Text>
+              </View>
+            </Pressable>
+          </>
         ) : null}
 
         {esComprador ? (
@@ -208,9 +234,9 @@ export default function HomeScreen() {
 
         <Text style={styles.hint}>
           {esAgricultor
-            ? 'Cuando activemos el mercado, los compradores verán tu oferta.'
+            ? 'Los compradores ven tu oferta en el mercado. Revisa pedidos cuando envíen comprobante.'
             : esComprador
-              ? 'Compra con stock real: al pedir se reserva la cantidad hasta que subas tu comprobante.'
+              ? 'Al crear el pedido se reserva stock. El sistema pre-valida tu comprobante; si falla, el stock vuelve al mercado.'
               : `Pronto tendrás aquí más opciones para ${roleLabel(
                   user?.role
                 ).toLowerCase()}.`}
