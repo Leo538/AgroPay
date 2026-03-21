@@ -11,6 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as orderApi from '../services/orderService';
+import {
+  PRODUCT_PHOTO_BG,
+  productImageResizeMode,
+} from '../utils/productImageDisplay';
+import { labelUnidad } from '../utils/unidadLabels';
 
 const COLORS = {
   greenDark: '#2E7D32',
@@ -19,20 +24,6 @@ const COLORS = {
   grayLight: '#F5F5F5',
   textMuted: '#424242',
 };
-
-function labelUnidad(key) {
-  const m = {
-    kg: 'Kilogramo (kg)',
-    lb: 'Libra',
-    unidad: 'Por unidad',
-    docena: 'Docena',
-    litro: 'Litro',
-    arroba: 'Arroba',
-    atado: 'Atado / manojo',
-    otro: 'Otro',
-  };
-  return m[key] || key;
-}
 
 export default function MarketScreen({ navigation }) {
   const [products, setProducts] = useState([]);
@@ -79,7 +70,13 @@ export default function MarketScreen({ navigation }) {
         accessibilityLabel={`Producto ${item.nombre}`}
       >
         {item.imagenUrl ? (
-          <Image source={{ uri: item.imagenUrl }} style={styles.img} />
+          <View style={styles.imgWrap}>
+            <Image
+              source={{ uri: item.imagenUrl }}
+              style={styles.imgInner}
+              resizeMode={productImageResizeMode}
+            />
+          </View>
         ) : (
           <View style={styles.imgPlaceholder}>
             <Text style={styles.imgPlaceholderText}>🌽</Text>
@@ -176,7 +173,20 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   cardPressed: { opacity: 0.94 },
-  img: { width: 100, height: 100, backgroundColor: COLORS.grayLight },
+  imgWrap: {
+    width: 100,
+    height: 100,
+    backgroundColor: PRODUCT_PHOTO_BG,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imgInner: {
+    width: '100%',
+    height: '100%',
+  },
   imgPlaceholder: {
     width: 100,
     height: 100,

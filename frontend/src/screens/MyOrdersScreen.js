@@ -85,12 +85,6 @@ export default function MyOrdersScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <View style={styles.top}>
-        <Text style={styles.hint}>
-          Estados: pendiente → pre-validado (sistema) → pagado → entregado. También
-          puede quedar rechazado. Toca un pedido para ver detalle y comprobante.
-        </Text>
-      </View>
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={COLORS.greenDark} />
@@ -123,13 +117,6 @@ export default function MyOrdersScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.grayLight },
-  top: {
-    padding: 16,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  hint: { fontSize: 14, color: COLORS.textMuted, lineHeight: 20 },
   list: { padding: 16, paddingBottom: 32 },
   card: {
     backgroundColor: COLORS.white,

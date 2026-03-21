@@ -21,6 +21,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ConfirmModal from '../components/ConfirmModal';
 import * as productApi from '../services/productService';
 import { alertMessage } from '../utils/confirmDialog';
+import {
+  PRODUCT_PHOTO_BG,
+  productImageResizeMode,
+} from '../utils/productImageDisplay';
+import { labelUnidad, unidadesParaFormulario } from '../utils/unidadLabels';
 
 const COLORS = {
   greenDark: '#2E7D32',
@@ -31,17 +36,6 @@ const COLORS = {
   textMuted: '#424242',
   error: '#C62828',
 };
-
-const UNIDADES = [
-  { key: 'kg', label: 'Kilogramo (kg)' },
-  { key: 'lb', label: 'Libra' },
-  { key: 'unidad', label: 'Por unidad' },
-  { key: 'docena', label: 'Docena' },
-  { key: 'litro', label: 'Litro' },
-  { key: 'arroba', label: 'Arroba' },
-  { key: 'atado', label: 'Atado / manojo' },
-  { key: 'otro', label: 'Otro' },
-];
 
 const CATEGORIAS = [
   { key: 'frutas', label: 'Frutas' },
@@ -56,10 +50,6 @@ function formatPrecio(n) {
   const x = Number(n);
   if (Number.isNaN(x)) return '—';
   return x.toFixed(2);
-}
-
-function labelUnidad(key) {
-  return UNIDADES.find((u) => u.key === key)?.label || key;
 }
 
 function labelCategoria(key) {
@@ -261,11 +251,14 @@ export default function ProductScreen() {
     return (
       <View style={styles.card}>
         {item.imagenUrl ? (
-          <Image
-            source={{ uri: item.imagenUrl }}
-            style={styles.cardImage}
-            accessibilityLabel={`Foto de ${item.nombre}`}
-          />
+          <View style={styles.cardImageWrap}>
+            <Image
+              source={{ uri: item.imagenUrl }}
+              style={styles.cardImageInner}
+              resizeMode={productImageResizeMode}
+              accessibilityLabel={`Foto de ${item.nombre}`}
+            />
+          </View>
         ) : null}
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle} numberOfLines={2}>
@@ -407,7 +400,7 @@ export default function ProductScreen() {
 
               <Text style={styles.label}>Unidad de venta</Text>
               <View style={styles.chips}>
-                {UNIDADES.map((u) => (
+                {unidadesParaFormulario(unidad).map((u) => (
                   <Pressable
                     key={u.key}
                     style={[styles.chip, unidad === u.key && styles.chipOn]}
@@ -449,11 +442,13 @@ export default function ProductScreen() {
               <Text style={styles.label}>Foto del producto (opcional)</Text>
               <View style={styles.imageBlock}>
                 {imagenUrl ? (
-                  <Image
-                    source={{ uri: imagenUrl }}
-                    style={styles.previewImage}
-                    resizeMode="cover"
-                  />
+                  <View style={styles.previewImageWrap}>
+                    <Image
+                      source={{ uri: imagenUrl }}
+                      style={styles.previewImageInner}
+                      resizeMode={productImageResizeMode}
+                    />
+                  </View>
                 ) : (
                   <View style={styles.previewPlaceholder}>
                     <Text style={styles.previewPlaceholderText}>
@@ -596,12 +591,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  cardImage: {
+  cardImageWrap: {
     width: '100%',
-    height: 160,
+    aspectRatio: 16 / 10,
     borderRadius: 12,
     marginBottom: 12,
-    backgroundColor: COLORS.grayLight,
+    backgroundColor: PRODUCT_PHOTO_BG,
+    overflow: 'hidden',
+  },
+  cardImageInner: {
+    width: '100%',
+    height: '100%',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -759,11 +759,16 @@ const styles = StyleSheet.create({
   imageBlock: {
     marginTop: 4,
   },
-  previewImage: {
+  previewImageWrap: {
     width: '100%',
-    height: 160,
+    aspectRatio: 16 / 10,
     borderRadius: 12,
-    backgroundColor: COLORS.grayLight,
+    backgroundColor: PRODUCT_PHOTO_BG,
+    overflow: 'hidden',
+  },
+  previewImageInner: {
+    width: '100%',
+    height: '100%',
   },
   previewPlaceholder: {
     width: '100%',

@@ -18,6 +18,7 @@ import * as orderApi from '../services/orderService';
 import { alertMessage } from '../utils/confirmDialog';
 import { colorEstadoPedido, labelEstadoPedido } from '../utils/orderEstado';
 import { pickImageDataUrl } from '../utils/pickImageDataUrl';
+import { labelUnidad } from '../utils/unidadLabels';
 
 const COLORS = {
   greenDark: '#2E7D32',
@@ -32,20 +33,6 @@ const METODO_LABEL = {
   efectivo: 'Efectivo',
   otro: 'Otro',
 };
-
-function labelUnidad(key) {
-  const m = {
-    kg: 'Kilogramo (kg)',
-    lb: 'Libra',
-    unidad: 'Por unidad',
-    docena: 'Docena',
-    litro: 'Litro',
-    arroba: 'Arroba',
-    atado: 'Atado / manojo',
-    otro: 'Otro',
-  };
-  return m[key] || key;
-}
 
 export default function CheckoutOrderScreen({ route, navigation }) {
   const { orderId } = route.params || {};
@@ -250,33 +237,18 @@ export default function CheckoutOrderScreen({ route, navigation }) {
           </Text>
         </View>
 
-        <View style={styles.infoBox}>
-          <Text style={styles.infoTitle}>Tu compra en pasos</Text>
-          <Text style={styles.infoText}>
-            1 · Ingresa a la app{'\n'}
-            2 · Lista de productos 🌽{'\n'}
-            3 · Selecciona producto{'\n'}
-            4 · Crea pedido{'\n'}
-            5 · Paga 💳{'\n'}
-            6 · Comprobante: QR 📷 o imagen 🧾{'\n'}
-            7 · Importe y referencia salen del comprobante (OCR / QR), plantilla Pichincha{'\n'}
-            8 · Estado del pedido: pendiente → pre-validado → pagado → entregado (o
-            rechazado)
-          </Text>
-        </View>
-
         {pendiente ? (
           <>
-            <Text style={styles.sectionTitle}>6 · Enviar comprobante</Text>
+            <Text style={styles.sectionTitle}>Enviar comprobante</Text>
             <Text style={styles.sectionSub}>
-              Pago solo por transferencia. Usa el comprobante Banco Pichincha: sube
-              una imagen o escanea el QR; el sistema lee monto y referencia.
+              Pago solo por transferencia. Usa el comprobante: sube una imagen o escanea
+              el QR; el sistema lee monto y referencia.
             </Text>
 
             <Pressable style={styles.actionQr} onPress={abrirEscanerQr}>
               <Text style={styles.actionQrText}>Escanear código QR 📷</Text>
               <Text style={styles.hintOnDark}>
-                Lee el QR del comprobante de transferencia (p. ej. Banco Pichincha)
+                Lee el QR del comprobante de transferencia
               </Text>
             </Pressable>
 
@@ -547,21 +519,6 @@ const styles = StyleSheet.create({
     color: COLORS.greenDark,
     marginBottom: 12,
   },
-  infoBox: {
-    backgroundColor: '#E8F5E9',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#C8E6C9',
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.greenDark,
-    marginBottom: 8,
-  },
-  infoText: { fontSize: 14, color: COLORS.textMuted, lineHeight: 22 },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '700',

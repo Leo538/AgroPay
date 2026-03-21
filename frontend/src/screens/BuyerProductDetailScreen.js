@@ -13,6 +13,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as orderApi from '../services/orderService';
+import {
+  PRODUCT_PHOTO_BG,
+  productImageResizeMode,
+} from '../utils/productImageDisplay';
+import { labelUnidad } from '../utils/unidadLabels';
 
 const COLORS = {
   greenDark: '#2E7D32',
@@ -21,20 +26,6 @@ const COLORS = {
   grayLight: '#F5F5F5',
   textMuted: '#424242',
 };
-
-function labelUnidad(key) {
-  const m = {
-    kg: 'Kilogramo (kg)',
-    lb: 'Libra',
-    unidad: 'Por unidad',
-    docena: 'Docena',
-    litro: 'Litro',
-    arroba: 'Arroba',
-    atado: 'Atado / manojo',
-    otro: 'Otro',
-  };
-  return m[key] || key;
-}
 
 export default function BuyerProductDetailScreen({ route, navigation }) {
   const { productId } = route.params || {};
@@ -141,7 +132,13 @@ export default function BuyerProductDetailScreen({ route, navigation }) {
         keyboardShouldPersistTaps="handled"
       >
         {product.imagenUrl ? (
-          <Image source={{ uri: product.imagenUrl }} style={styles.heroImg} />
+          <View style={styles.heroImgWrap}>
+            <Image
+              source={{ uri: product.imagenUrl }}
+              style={styles.heroImgInner}
+              resizeMode={productImageResizeMode}
+            />
+          </View>
         ) : (
           <View style={styles.heroPlaceholder}>
             <Text style={styles.heroEmoji}>🌽</Text>
@@ -235,7 +232,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   backBtnText: { color: COLORS.white, fontWeight: '700' },
-  heroImg: { width: '100%', height: 220, backgroundColor: COLORS.grayLight },
+  heroImgWrap: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    backgroundColor: PRODUCT_PHOTO_BG,
+    overflow: 'hidden',
+  },
+  heroImgInner: {
+    width: '100%',
+    height: '100%',
+  },
   heroPlaceholder: {
     width: '100%',
     height: 180,

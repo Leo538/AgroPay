@@ -22,6 +22,7 @@ import {
   colorEstadoPedido,
   labelEstadoPedido,
 } from '../utils/orderEstado';
+import { labelUnidad } from '../utils/unidadLabels';
 
 const COLORS = {
   greenDark: '#2E7D32',
@@ -31,20 +32,6 @@ const COLORS = {
   textMuted: '#424242',
   error: '#C62828',
 };
-
-function labelUnidad(key) {
-  const m = {
-    kg: 'kg',
-    lb: 'lb',
-    unidad: 'unidad',
-    docena: 'docena',
-    litro: 'l',
-    arroba: 'arroba',
-    atado: 'atado',
-    otro: 'otro',
-  };
-  return m[key] || key;
-}
 
 export default function FarmerOrderDetailScreen({ route, navigation }) {
   const { orderId } = route.params || {};

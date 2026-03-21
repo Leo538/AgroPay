@@ -1,14 +1,19 @@
 const mongoose = require('mongoose');
 
+/** Mayorista / grandes productores; al final: valores legados aún válidos en BD. */
 const UNIDADES = [
   'kg',
-  'lb',
-  'unidad',
-  'docena',
-  'litro',
+  't',
+  'quintal',
+  'saco',
   'arroba',
-  'atado',
+  'litro',
+  'caja',
+  'unidad',
   'otro',
+  'lb',
+  'docena',
+  'atado',
 ];
 
 const CATEGORIAS = [

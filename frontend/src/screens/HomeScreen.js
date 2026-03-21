@@ -2,13 +2,16 @@ import { useNavigation } from '@react-navigation/native';
 import React, { useMemo, useState } from 'react';
 import {
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+
+/** Ancho máximo del contenido en tablet / web (legible y centrado). */
+const CONTENT_MAX_W = 560;
 
 const COLORS = {
   greenDark: '#2E7D32',
@@ -39,6 +42,7 @@ function iniciales(nombre, apellido) {
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
   const [perfilAbierto, setPerfilAbierto] = useState(false);
 
@@ -52,13 +56,17 @@ export default function HomeScreen() {
     [nombre, apellido]
   );
 
+  const footerPadBottom = Math.max(insets.bottom, 14);
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.mainColumn}>
+        <ScrollView
+          style={styles.scrollFlex}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.hero}>
           <View style={styles.avatar} accessibilityLabel="Avatar de perfil">
             <Text style={styles.avatarText}>
@@ -231,29 +239,33 @@ export default function HomeScreen() {
             </Pressable>
           </>
         ) : null}
+        </ScrollView>
 
-        <Text style={styles.hint}>
-          {esAgricultor
-            ? 'Los compradores ven tu oferta en el mercado. Revisa pedidos cuando envíen comprobante.'
-            : esComprador
-              ? 'Al crear el pedido se reserva stock. El sistema pre-valida tu comprobante; si falla, el stock vuelve al mercado.'
-              : `Pronto tendrás aquí más opciones para ${roleLabel(
-                  user?.role
-                ).toLowerCase()}.`}
-        </Text>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.signOut,
-            pressed && styles.signOutPressed,
-          ]}
-          onPress={() => signOut()}
-          accessibilityRole="button"
-          accessibilityLabel="Cerrar sesión"
-        >
-          <Text style={styles.signOutText}>Cerrar sesión</Text>
-        </Pressable>
-      </ScrollView>
+        <View style={[styles.footer, { paddingBottom: footerPadBottom }]}>
+          <View style={styles.footerInner}>
+            <Text style={styles.hint}>
+              {esAgricultor
+                ? 'Los compradores ven tu oferta en el mercado. Revisa pedidos cuando envíen comprobante.'
+                : esComprador
+                  ? 'Al crear el pedido se reserva stock. El sistema pre-valida tu comprobante; si falla, el stock vuelve al mercado.'
+                  : `Pronto tendrás aquí más opciones para ${roleLabel(
+                      user?.role
+                    ).toLowerCase()}.`}
+            </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.signOut,
+                pressed && styles.signOutPressed,
+              ]}
+              onPress={() => signOut()}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar sesión"
+            >
+              <Text style={styles.signOutText}>Cerrar sesión</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -263,10 +275,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bgPage,
   },
-  scroll: {
-    paddingHorizontal: 20,
+  mainColumn: {
+    flex: 1,
+  },
+  scrollFlex: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingTop: 12,
-    paddingBottom: 32,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    width: '100%',
+    maxWidth: CONTENT_MAX_W,
+    alignSelf: 'center',
+  },
+  footer: {
+    backgroundColor: 'transparent',
+    paddingTop: 12,
+  },
+  footerInner: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_W,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
   },
   hero: {
     alignItems: 'center',
@@ -406,7 +438,6 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     textAlign: 'center',
     lineHeight: 21,
-    marginTop: 8,
     marginBottom: 20,
     paddingHorizontal: 12,
   },
