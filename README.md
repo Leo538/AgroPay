@@ -27,6 +27,8 @@ App React Native (Expo) + API Node.js (Express) + MongoDB.
 
    Por defecto escucha en **http://localhost:3000** (también en la red local, `0.0.0.0`). Rutas de auth: `POST /api/auth/register`, `POST /api/auth/login`.
 
+   **Productos (solo agricultor, con JWT):** prefijo `/api/products` — `GET /mine`, `POST /`, `PUT /:id`, `DELETE /:id` (header `Authorization: Bearer <token>`).
+
    El registro pide **nombre, apellido, celular**, correo, contraseña y rol (`agricultor` / `comprador`). Si cambiaste el modelo de usuario, los documentos viejos en Mongo sin esos campos pueden seguir iniciando sesión, pero los **usuarios nuevos** deben registrarse otra vez con el formulario actual.
 
    **Importante:** MongoDB Atlas solo guarda datos. Si ves `ERR_CONNECTION_REFUSED` en el móvil o en web, el **backend tiene que estar encendido** en otra terminal. Sin eso no hay registro ni login.
@@ -46,6 +48,8 @@ App React Native (Expo) + API Node.js (Express) + MongoDB.
    (Equivale a `npm start` o `npx expo start`.)
 
    **Navegador (tecla `w`):** hace falta `react-dom`, `react-native-web` y `@expo/metro-runtime` (instálalos con `npx expo install react-dom react-native-web @expo/metro-runtime` si Expo te lo pide). Luego `npm run dev` y pulsa `w`, o `npm run web`.
+
+   En **web**, `Alert` de React Native no muestra diálogos (es un no-op). Confirmaciones como **Eliminar producto** usan `window.confirm` vía `frontend/src/utils/confirmDialog.js`.
 
 2. La URL del API se resuelve sola en **Expo Go** (usa la misma IP que Metro). Si falla, crea `frontend/.env` con `EXPO_PUBLIC_API_URL=http://TU_IP:3000` y reinicia Expo (`Ctrl+C` y `npx expo start -c`). En **web** usa `http://localhost:3000` (el backend en tu PC).
 

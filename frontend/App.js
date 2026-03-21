@@ -1,7 +1,9 @@
+import { NavigationContainer } from '@react-navigation/native';
 import React from 'react';
 import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import HomeScreen from './src/screens/HomeScreen';
+import AppNavigator from './src/navigation/AppNavigator';
 import LoginScreen from './src/screens/LoginScreen';
 
 function AppContent() {
@@ -15,15 +17,25 @@ function AppContent() {
     );
   }
 
-  return user ? <HomeScreen /> : <LoginScreen />;
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  return (
+    <NavigationContainer>
+      <AppNavigator />
+    </NavigationContainer>
+  );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <StatusBar barStyle="light-content" backgroundColor="#2E7D32" />
-      <AppContent />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <StatusBar barStyle="light-content" backgroundColor="#2E7D32" />
+        <AppContent />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 

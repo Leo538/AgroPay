@@ -1,4 +1,5 @@
-import React from 'react';
+import { useNavigation } from '@react-navigation/native';
+import React, { useMemo, useState } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -11,11 +12,14 @@ import { useAuth } from '../context/AuthContext';
 
 const COLORS = {
   greenDark: '#2E7D32',
-  greenLight: '#66BB6A',
+  greenMid: '#388E3C',
+  greenSoft: '#E8F5E9',
   yellow: '#FBC02D',
   white: '#FFFFFF',
-  grayLight: '#F5F5F5',
-  textMuted: '#424242',
+  bgPage: '#F2F7F3',
+  text: '#1B1B1B',
+  textMuted: '#5C5C5C',
+  border: '#D7E8DA',
 };
 
 function roleLabel(role) {
@@ -24,60 +28,147 @@ function roleLabel(role) {
   return role || 'Usuario';
 }
 
+function iniciales(nombre, apellido) {
+  const n = (nombre || '').trim();
+  const a = (apellido || '').trim();
+  if (n && a) return `${n[0]}${a[0]}`.toUpperCase();
+  if (n.length >= 2) return n.slice(0, 2).toUpperCase();
+  if (n.length === 1) return n.toUpperCase();
+  return '?';
+}
+
 export default function HomeScreen() {
+  const navigation = useNavigation();
   const { user, signOut } = useAuth();
+  const [perfilAbierto, setPerfilAbierto] = useState(false);
+
+  const esAgricultor = user?.role === 'agricultor';
   const nombre = (user?.nombre || '').trim() || 'Usuario';
   const apellido = (user?.apellido || '').trim();
   const telefono = user?.telefono || '—';
+  const nombreCompleto = useMemo(
+    () => `${nombre}${apellido ? ` ${apellido}` : ''}`,
+    [nombre, apellido]
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.emoji} accessibilityLabel="Bienvenida">
-          🌾
-        </Text>
-        <Text style={styles.greeting}>Hola,</Text>
-        <Text style={styles.name}>
-          {nombre}
-          {apellido ? ` ${apellido}` : ''}
-        </Text>
-        <Text style={styles.sub}>Qué gusto verte en AgroPay</Text>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Tu perfil</Text>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Tipo de cuenta</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{roleLabel(user?.role)}</Text>
-            </View>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Celular</Text>
-            <Text style={styles.rowValue}>{telefono}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Correo</Text>
-            <Text style={styles.rowValue} numberOfLines={2}>
-              {user?.email || '—'}
+        <View style={styles.hero}>
+          <View style={styles.avatar} accessibilityLabel="Avatar de perfil">
+            <Text style={styles.avatarText}>
+              {iniciales(nombre, apellido)}
             </Text>
+          </View>
+          <Text style={styles.heroName} numberOfLines={2}>
+            {nombreCompleto}
+          </Text>
+          <View style={styles.rolePill}>
+            <Text style={styles.rolePillText}>{roleLabel(user?.role)}</Text>
           </View>
         </View>
 
+        <View style={styles.sectionLabel}>
+          <Text style={styles.sectionLabelText}>Accesos rápidos</Text>
+        </View>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.card,
+            pressed && styles.cardPressed,
+          ]}
+          onPress={() => setPerfilAbierto((v) => !v)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: perfilAbierto }}
+          accessibilityLabel="Mi perfil"
+          accessibilityHint="Muestra u oculta tus datos de cuenta"
+        >
+          <View style={styles.cardRow}>
+            <View style={styles.cardRowMain}>
+              <Text style={styles.cardTitle}>Mi perfil</Text>
+              <Text style={styles.cardSub}>
+                {perfilAbierto
+                  ? 'Toca para ocultar'
+                  : 'Toca para ver lo que ingresaste'}
+              </Text>
+            </View>
+            <Text style={styles.chevron} aria-hidden>
+              {perfilAbierto ? '▾' : '▸'}
+            </Text>
+          </View>
+
+          {perfilAbierto ? (
+            <View style={styles.detalle}>
+              <View style={styles.detalleRow}>
+                <Text style={styles.detalleLabel}>Tipo de cuenta</Text>
+                <Text style={styles.detalleValue}>
+                  {roleLabel(user?.role)}
+                </Text>
+              </View>
+              <View style={styles.detalleRow}>
+                <Text style={styles.detalleLabel}>Celular</Text>
+                <Text style={styles.detalleValue}>{telefono}</Text>
+              </View>
+              <View style={styles.detalleRow}>
+                <Text style={styles.detalleLabel}>Correo</Text>
+                <Text style={styles.detalleValue} numberOfLines={3}>
+                  {user?.email || '—'}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+        </Pressable>
+
+        {esAgricultor ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.card,
+              styles.cardLink,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={() => navigation.navigate('Productos')}
+            accessibilityRole="button"
+            accessibilityLabel="Mis productos"
+          >
+            <View style={styles.cardRow}>
+              <Text style={styles.linkIcon} aria-hidden>
+                🌽
+              </Text>
+              <View style={styles.cardRowMain}>
+                <Text style={styles.cardTitle}>Mis productos</Text>
+                <Text style={styles.cardSub} numberOfLines={2}>
+                  Publicar, editar o quitar lo que ofreces
+                </Text>
+              </View>
+              <Text style={styles.chevronMuted} aria-hidden>
+                ▸
+              </Text>
+            </View>
+          </Pressable>
+        ) : null}
+
         <Text style={styles.hint}>
-          Pronto aquí verás las opciones de {roleLabel(user?.role).toLowerCase()}{' '}
-          (productos, pedidos, etc.).
+          {esAgricultor
+            ? 'Cuando activemos el mercado, los compradores verán tu oferta.'
+            : `Pronto tendrás aquí más opciones para ${roleLabel(
+                user?.role
+              ).toLowerCase()}.`}
         </Text>
 
         <Pressable
-          style={styles.outlineBtn}
+          style={({ pressed }) => [
+            styles.signOut,
+            pressed && styles.signOutPressed,
+          ]}
           onPress={() => signOut()}
           accessibilityRole="button"
           accessibilityLabel="Cerrar sesión"
         >
-          <Text style={styles.outlineBtnText}>Cerrar sesión</Text>
+          <Text style={styles.signOutText}>Cerrar sesión</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -87,98 +178,172 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.greenDark,
+    backgroundColor: COLORS.bgPage,
   },
   scroll: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 40,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 32,
   },
-  emoji: {
-    fontSize: 52,
-    textAlign: 'center',
+  hero: {
+    alignItems: 'center',
+    paddingVertical: 20,
     marginBottom: 8,
   },
-  greeting: {
-    fontSize: 22,
-    color: COLORS.grayLight,
-    textAlign: 'center',
+  avatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.greenDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 3,
+    borderColor: COLORS.yellow,
   },
-  name: {
-    fontSize: 30,
-    fontWeight: '700',
+  avatarText: {
+    fontSize: 26,
+    fontWeight: '800',
     color: COLORS.white,
+    letterSpacing: 0.5,
+  },
+  heroName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.text,
     textAlign: 'center',
     marginBottom: 8,
+    paddingHorizontal: 16,
   },
-  sub: {
-    fontSize: 16,
-    color: COLORS.grayLight,
-    textAlign: 'center',
-    marginBottom: 28,
+  rolePill: {
+    backgroundColor: COLORS.greenSoft,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  rolePillText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.greenDark,
+  },
+  sectionLabel: {
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  sectionLabelText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   card: {
     backgroundColor: COLORS.white,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardLink: {
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.yellow,
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.995 }],
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 48,
+  },
+  cardRowMain: {
+    flex: 1,
+    paddingRight: 8,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: COLORS.greenDark,
-    marginBottom: 16,
+    marginBottom: 2,
   },
-  row: {
+  cardSub: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    lineHeight: 20,
+  },
+  chevron: {
+    fontSize: 18,
+    color: COLORS.greenMid,
+    fontWeight: '700',
+    paddingHorizontal: 4,
+  },
+  chevronMuted: {
+    fontSize: 18,
+    color: COLORS.textMuted,
+    fontWeight: '700',
+  },
+  linkIcon: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  detalle: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  detalleRow: {
     marginBottom: 14,
   },
-  rowLabel: {
-    fontSize: 14,
+  detalleLabel: {
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.textMuted,
     marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
-  rowValue: {
+  detalleValue: {
     fontSize: 16,
-    color: '#212121',
+    color: COLORS.text,
+    lineHeight: 22,
   },
-  badge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#E8F5E9',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+  hint: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    lineHeight: 21,
+    marginTop: 8,
+    marginBottom: 20,
+    paddingHorizontal: 12,
+  },
+  signOut: {
+    alignSelf: 'center',
+    minWidth: 200,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: COLORS.greenDark,
+    backgroundColor: COLORS.white,
   },
-  badgeText: {
+  signOutPressed: {
+    backgroundColor: COLORS.greenSoft,
+  },
+  signOutText: {
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.greenDark,
-  },
-  hint: {
-    fontSize: 15,
-    color: COLORS.grayLight,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
-    paddingHorizontal: 8,
-  },
-  outlineBtn: {
-    borderWidth: 2,
-    borderColor: COLORS.white,
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  outlineBtnText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.white,
   },
 });

@@ -18,7 +18,14 @@
       }
     },
     "plugins": [
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "AgroPay usa tu galería para adjuntar una foto del producto.",
+          "cameraPermission": "AgroPay puede usar la cámara si quieres tomar una foto del producto."
+        }
+      ]
     ]
   }
 }
