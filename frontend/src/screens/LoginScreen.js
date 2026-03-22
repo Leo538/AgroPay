@@ -12,8 +12,19 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import * as loginApi from '../services/authService';
-import { isValidEmail, MIN_PASSWORD_LENGTH } from '../utils/validation';
+import { useAuth } from '../context/AuthContext';
+import * as authApi from '../services/authService';
+import {
+  isValidEmail,
+  isValidPersonName,
+  isValidPhone,
+  MIN_NAME_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  normalizePhone,
+  PHONE_DIGITS,
+  sanitizeNameInput,
+  sanitizePhoneInput,
+} from '../utils/validation';
 
 const COLORS = {
   greenDark: '#2E7D32',
@@ -26,18 +37,32 @@ const COLORS = {
   errorBg: '#FFEBEE',
 };
 
+function emptyErrors() {
+  return {
+    nombre: '',
+    apellido: '',
+    telefono: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: '',
+  };
+}
+
 const initialBlurred = {
+  nombre: false,
+  apellido: false,
+  telefono: false,
   email: false,
   password: false,
   confirmPassword: false,
 };
 
-/**
- * strict: al enviar el formulario (todos los campos obligatorios).
- * live: mientras escribes / al salir del campo (onBlur).
- */
 function computeFieldErrors({
   isLogin,
+  nombre,
+  apellido,
+  telefono,
   email,
   password,
   confirmPassword,
@@ -45,10 +70,39 @@ function computeFieldErrors({
   blurred,
   strict,
 }) {
-  const e = { email: '', password: '', confirmPassword: '', role: '' };
+  const e = emptyErrors();
   const trim = email.trim();
+  const nNom = String(nombre || '').trim();
+  const nApe = String(apellido || '').trim();
+  const phoneDigits = normalizePhone(telefono);
 
   if (strict) {
+    if (!isLogin) {
+      if (!nNom) {
+        e.nombre = 'Escribe tu nombre.';
+      } else if (nNom.length < MIN_NAME_LENGTH) {
+        e.nombre = `El nombre debe tener al menos ${MIN_NAME_LENGTH} letras.`;
+      } else if (!isValidPersonName(nombre)) {
+        e.nombre =
+          'Solo letras y espacios, sin números ni símbolos (mín. 2 letras).';
+      }
+
+      if (!nApe) {
+        e.apellido = 'Escribe tu apellido.';
+      } else if (nApe.length < MIN_NAME_LENGTH) {
+        e.apellido = `El apellido debe tener al menos ${MIN_NAME_LENGTH} letras.`;
+      } else if (!isValidPersonName(apellido)) {
+        e.apellido =
+          'Solo letras y espacios, sin números ni símbolos (mín. 2 letras).';
+      }
+
+      if (!phoneDigits) {
+        e.telefono = 'Escribe tu número de celular (10 dígitos).';
+      } else if (!isValidPhone(telefono)) {
+        e.telefono = `El celular debe tener ${PHONE_DIGITS} dígitos, solo números.`;
+      }
+    }
+
     if (!trim) {
       e.email = 'Escribe tu correo electrónico.';
     } else if (!isValidEmail(trim)) {
@@ -74,7 +128,7 @@ function computeFieldErrors({
     return e;
   }
 
-  // En vivo (login y registro)
+  // En vivo
   if (trim.length > 0 && !isValidEmail(trim)) {
     e.email = 'Usa un correo válido (ejemplo: nombre@correo.com).';
   } else if (blurred.email && !trim) {
@@ -90,6 +144,28 @@ function computeFieldErrors({
   }
 
   if (!isLogin) {
+    if (nNom.length > 0 && nNom.length < MIN_NAME_LENGTH) {
+      e.nombre = `Mínimo ${MIN_NAME_LENGTH} letras.`;
+    } else if (nNom.length >= MIN_NAME_LENGTH && !isValidPersonName(nombre)) {
+      e.nombre = 'Sin números ni símbolos; solo letras y espacios.';
+    } else if (blurred.nombre && !nNom) {
+      e.nombre = 'Escribe tu nombre.';
+    }
+
+    if (nApe.length > 0 && nApe.length < MIN_NAME_LENGTH) {
+      e.apellido = `Mínimo ${MIN_NAME_LENGTH} letras.`;
+    } else if (nApe.length >= MIN_NAME_LENGTH && !isValidPersonName(apellido)) {
+      e.apellido = 'Sin números ni símbolos; solo letras y espacios.';
+    } else if (blurred.apellido && !nApe) {
+      e.apellido = 'Escribe tu apellido.';
+    }
+
+    if (phoneDigits.length > 0 && phoneDigits.length < PHONE_DIGITS) {
+      e.telefono = `Faltan ${PHONE_DIGITS - phoneDigits.length} dígito(s) (son ${PHONE_DIGITS} en total).`;
+    } else if (blurred.telefono && !phoneDigits) {
+      e.telefono = 'Escribe tu celular (10 dígitos, solo números).';
+    }
+
     if (
       confirmPassword.length > 0 &&
       password.length > 0 &&
@@ -113,7 +189,11 @@ function hasAnyError(err) {
 }
 
 export default function LoginScreen() {
+  const { signIn, signOut } = useAuth();
   const [mode, setMode] = useState('login');
+  const [nombre, setNombre] = useState('');
+  const [apellido, setApellido] = useState('');
+  const [telefono, setTelefono] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -129,6 +209,9 @@ export default function LoginScreen() {
     () =>
       computeFieldErrors({
         isLogin,
+        nombre,
+        apellido,
+        telefono,
         email,
         password,
         confirmPassword,
@@ -138,6 +221,9 @@ export default function LoginScreen() {
       }),
     [
       isLogin,
+      nombre,
+      apellido,
+      telefono,
       email,
       password,
       confirmPassword,
@@ -148,6 +234,9 @@ export default function LoginScreen() {
   );
 
   function clearFormOnModeChange() {
+    setNombre('');
+    setApellido('');
+    setTelefono('');
     setEmail('');
     setPassword('');
     setConfirmPassword('');
@@ -161,6 +250,9 @@ export default function LoginScreen() {
     setSubmitError('');
     const strictErrs = computeFieldErrors({
       isLogin,
+      nombre,
+      apellido,
+      telefono,
       email,
       password,
       confirmPassword,
@@ -177,20 +269,33 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       if (isLogin) {
-        await loginApi.login(trimmedEmail, password);
+        await signIn(trimmedEmail, password);
         setSubmitAttempted(false);
         setBlurred(initialBlurred);
         Alert.alert('Bienvenido', 'Has iniciado sesión correctamente.');
       } else {
-        await loginApi.register(trimmedEmail, password, role);
+        await authApi.register({
+          nombre,
+          apellido,
+          telefono,
+          email: trimmedEmail,
+          password,
+          role,
+        });
+        // Nunca guardar token al registrar: limpiar sesión por si quedó algo viejo en memoria/AsyncStorage
+        await signOut();
         setPassword('');
         setConfirmPassword('');
+        setNombre('');
+        setApellido('');
+        setTelefono('');
+        setRole('agricultor');
+        setMode('login');
         setSubmitAttempted(false);
         setBlurred(initialBlurred);
-        setMode('login');
         Alert.alert(
           'Cuenta creada',
-          'Ya puedes iniciar sesión con tu correo y contraseña.'
+          'Inicia sesión con tu correo y contraseña para entrar a AgroPay.'
         );
       }
     } catch (err) {
@@ -221,7 +326,7 @@ export default function LoginScreen() {
             </Text>
             <Text style={styles.title}>AgroPay</Text>
             <Text style={styles.subtitle}>
-              {isLogin ? 'Inicia sesión para continuar' : 'Crea tu cuenta en un paso'}
+              {isLogin ? 'Inicia sesión para continuar' : 'Crea tu cuenta'}
             </Text>
           </View>
 
@@ -254,6 +359,95 @@ export default function LoginScreen() {
                 </Text>
               </Pressable>
             </View>
+
+            {!isLogin && (
+              <>
+                <View style={styles.fieldBlock}>
+                  <Text style={styles.label}>Nombre</Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      fieldErrors.nombre ? styles.inputError : null,
+                    ]}
+                    placeholder="Ej. Juan"
+                    placeholderTextColor="#9E9E9E"
+                    value={nombre}
+                    onChangeText={(t) => {
+                      setNombre(sanitizeNameInput(t));
+                      setSubmitError('');
+                    }}
+                    onBlur={() => setBlurred((b) => ({ ...b, nombre: true }))}
+                    autoCapitalize="words"
+                    editable={!loading}
+                    accessibilityLabel="Nombre"
+                  />
+                  {fieldErrors.nombre ? (
+                    <Text style={styles.fieldErrorText}>{fieldErrors.nombre}</Text>
+                  ) : (
+                    <Text style={styles.hintNeutral}>
+                      Solo letras y espacios (sin números ni símbolos)
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.fieldBlock}>
+                  <Text style={styles.label}>Apellido</Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      fieldErrors.apellido ? styles.inputError : null,
+                    ]}
+                    placeholder="Ej. Pérez"
+                    placeholderTextColor="#9E9E9E"
+                    value={apellido}
+                    onChangeText={(t) => {
+                      setApellido(sanitizeNameInput(t));
+                      setSubmitError('');
+                    }}
+                    onBlur={() => setBlurred((b) => ({ ...b, apellido: true }))}
+                    autoCapitalize="words"
+                    editable={!loading}
+                    accessibilityLabel="Apellido"
+                  />
+                  {fieldErrors.apellido ? (
+                    <Text style={styles.fieldErrorText}>{fieldErrors.apellido}</Text>
+                  ) : (
+                    <Text style={styles.hintNeutral}>
+                      Solo letras y espacios (sin números ni símbolos)
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.fieldBlock}>
+                  <Text style={styles.label}>Celular</Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      fieldErrors.telefono ? styles.inputError : null,
+                    ]}
+                    placeholder="10 dígitos, ej. 0991234567"
+                    placeholderTextColor="#9E9E9E"
+                    value={telefono}
+                    onChangeText={(t) => {
+                      setTelefono(sanitizePhoneInput(t));
+                      setSubmitError('');
+                    }}
+                    onBlur={() => setBlurred((b) => ({ ...b, telefono: true }))}
+                    keyboardType="number-pad"
+                    maxLength={PHONE_DIGITS}
+                    editable={!loading}
+                    accessibilityLabel="Celular"
+                  />
+                  {fieldErrors.telefono ? (
+                    <Text style={styles.fieldErrorText}>{fieldErrors.telefono}</Text>
+                  ) : (
+                    <Text style={styles.hintNeutral}>
+                      Exactamente {PHONE_DIGITS} números, sin letras ni símbolos
+                    </Text>
+                  )}
+                </View>
+              </>
+            )}
 
             <View style={styles.fieldBlock}>
               <Text style={styles.label}>Correo electrónico</Text>

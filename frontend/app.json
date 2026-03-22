@@ -18,7 +18,20 @@
       }
     },
     "plugins": [
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "AgroPay usa tu galería para fotos de productos y comprobantes de pago.",
+          "cameraPermission": "AgroPay usa la cámara para fotografiar productos, QR y comprobantes."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "AgroPay usa la cámara para escanear códigos QR de pago y fotografiar comprobantes."
+        }
+      ]
     ]
   }
 }
