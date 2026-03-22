@@ -10,15 +10,41 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as orderApi from '../services/orderService';
-import { colorEstadoPedido, labelEstadoPedido } from '../utils/orderEstado';
+import {
+  colorEstadoPedido,
+  fondoSuaveEstadoPedido,
+  labelEstadoPedido,
+} from '../utils/orderEstado';
+
+const CONTENT_MAX_W = 560;
 
 const COLORS = {
   greenDark: '#2E7D32',
+  greenMid: '#388E3C',
   yellow: '#FBC02D',
   white: '#FFFFFF',
-  grayLight: '#F5F5F5',
-  textMuted: '#424242',
+  page: '#F0F4F1',
+  greenSoft: '#E8F5E9',
+  textMuted: '#5C5C5C',
+  text: '#1B1B1B',
+  border: '#C8E6C9',
 };
+
+function fechaPedido(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('es-EC', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
 
 export default function FarmerOrdersScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
@@ -48,7 +74,9 @@ export default function FarmerOrdersScreen({ navigation }) {
     const comprador = buyer
       ? `${buyer.nombre || ''} ${buyer.apellido || ''}`.trim()
       : 'Comprador';
-    const c = colorEstadoPedido(item.estado);
+    const estadoColor = colorEstadoPedido(item.estado);
+    const estadoBg = fondoSuaveEstadoPedido(item.estado);
+    const cuando = fechaPedido(item.updatedAt || item.createdAt);
 
     return (
       <Pressable
@@ -56,32 +84,74 @@ export default function FarmerOrdersScreen({ navigation }) {
         onPress={() =>
           navigation.navigate('DetallePedidoAgricultor', { orderId: item._id })
         }
+        accessibilityRole="button"
+        accessibilityLabel={`Pedido ${line?.nombre || 'producto'}, ${labelEstadoPedido(item.estado)}`}
       >
-        <View style={styles.row}>
-          <Text style={styles.title} numberOfLines={1}>
-            {line?.nombre || 'Pedido'}
-          </Text>
-          <View style={[styles.badge, { borderColor: c }]}>
-            <Text style={[styles.badgeText, { color: c }]}>
-              {labelEstadoPedido(item.estado)}
-            </Text>
+        <View style={[styles.accent, { backgroundColor: estadoColor }]} />
+
+        <View style={styles.cardInner}>
+          <View style={styles.cardTop}>
+            <View style={styles.cardTopMain}>
+              <Text style={styles.producto} numberOfLines={2}>
+                {line?.nombre || 'Pedido'}
+              </Text>
+              <View style={styles.buyerRow}>
+                <Text style={styles.buyerLabel}>Comprador</Text>
+                <Text style={styles.buyerName} numberOfLines={1}>
+                  {comprador}
+                </Text>
+              </View>
+            </View>
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: estadoBg, borderColor: estadoColor },
+              ]}
+            >
+              <Text style={[styles.badgeText, { color: estadoColor }]}>
+                {labelEstadoPedido(item.estado)}
+              </Text>
+            </View>
+          </View>
+
+          {cuando ? <Text style={styles.fechaMeta}>{cuando}</Text> : null}
+
+          <View style={styles.cardBottom}>
+            <View>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.total}>
+                ${Number(item.total).toFixed(2)}
+              </Text>
+            </View>
+            <View style={styles.ctaPill}>
+              <Text style={styles.ctaText}>Ver pedido</Text>
+              <Text style={styles.ctaChevron} aria-hidden>
+                →
+              </Text>
+            </View>
           </View>
         </View>
-        <Text style={styles.meta}>{comprador}</Text>
-        <Text style={styles.total}>${Number(item.total).toFixed(2)}</Text>
-        <Text style={styles.tap}>Abrir detalle ▸</Text>
       </Pressable>
     );
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <View style={styles.top}>
-        <Text style={styles.hint}>
-          Revisa comprobantes, datos detectados por el sistema y confirma o rechaza
-          cada pago. Luego marca entregado.
-        </Text>
+      <View style={styles.introWrap}>
+        <View style={styles.introCard}>
+          <Text style={styles.introIcon} aria-hidden>
+            📋
+          </Text>
+          <View style={styles.introTextBlock}>
+            <Text style={styles.introTitle}>Qué hacer aquí</Text>
+            <Text style={styles.introBody}>
+              Revisa comprobante y datos que detectó el sistema. Confirma o rechaza
+              el pago y, cuando corresponda, marca entregado.
+            </Text>
+          </View>
+        </View>
       </View>
+
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={COLORS.greenDark} />
@@ -92,11 +162,18 @@ export default function FarmerOrdersScreen({ navigation }) {
           keyExtractor={(item) => String(item._id)}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.empty}>
+              <View style={styles.emptyIconWrap}>
+                <Text style={styles.emptyIcon} aria-hidden>
+                  🛒
+                </Text>
+              </View>
               <Text style={styles.emptyTitle}>Sin pedidos aún</Text>
               <Text style={styles.emptySub}>
-                Cuando un comprador pague tus productos, aparecerán aquí.
+                Cuando un comprador reserve y envíe comprobante, verás cada pedido
+                aquí.
               </Text>
             </View>
           }
@@ -107,65 +184,187 @@ export default function FarmerOrdersScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.grayLight },
-  top: {
-    padding: 16,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+  safe: { flex: 1, backgroundColor: COLORS.page },
+  introWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 6,
+    maxWidth: CONTENT_MAX_W,
+    width: '100%',
+    alignSelf: 'center',
   },
-  hint: { fontSize: 14, color: COLORS.textMuted, lineHeight: 20 },
-  list: { padding: 16, paddingBottom: 32 },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.yellow,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-  },
-  cardPressed: { opacity: 0.92 },
-  row: {
+  introCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: COLORS.greenSoft,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    gap: 12,
+  },
+  introIcon: { fontSize: 28, marginTop: 2 },
+  introTextBlock: { flex: 1 },
+  introTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.greenDark,
+    marginBottom: 6,
+  },
+  introBody: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    lineHeight: 20,
+  },
+  list: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 32,
+    maxWidth: CONTENT_MAX_W,
+    width: '100%',
+    alignSelf: 'center',
+    flexGrow: 1,
+  },
+  card: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.white,
+    borderRadius: 18,
+    marginBottom: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E0E8E2',
+    shadowColor: '#1B5E20',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  cardPressed: { opacity: 0.96 },
+  accent: {
+    width: 5,
+    alignSelf: 'stretch',
+  },
+  cardInner: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingLeft: 12,
+  },
+  cardTop: {
+    flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: 10,
     marginBottom: 8,
   },
-  title: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '700',
+  cardTopMain: { flex: 1, minWidth: 0 },
+  producto: {
+    fontSize: 18,
+    fontWeight: '800',
     color: COLORS.greenDark,
+    lineHeight: 24,
+    marginBottom: 8,
+  },
+  buyerRow: { gap: 2 },
+  buyerLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.greenMid,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  buyerName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.text,
   },
   badge: {
-    borderWidth: 2,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    maxWidth: '52%',
+    maxWidth: '46%',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  badgeText: { fontSize: 10, fontWeight: '800' },
-  meta: { fontSize: 14, color: COLORS.textMuted, marginBottom: 6 },
-  total: { fontSize: 20, fontWeight: '800', color: '#212121' },
-  tap: {
-    marginTop: 10,
-    fontSize: 13,
-    fontWeight: '600',
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    lineHeight: 13,
+  },
+  fechaMeta: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginBottom: 12,
+  },
+  cardBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#EEE',
+  },
+  totalLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  total: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.text,
+    letterSpacing: -0.5,
+  },
+  ctaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.greenSoft,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    gap: 6,
+  },
+  ctaText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.greenDark,
+  },
+  ctaChevron: {
+    fontSize: 16,
+    fontWeight: '700',
     color: COLORS.greenDark,
   },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  empty: { paddingVertical: 40, paddingHorizontal: 24, alignItems: 'center' },
+  empty: {
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.greenSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  emptyIcon: { fontSize: 32 },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.greenDark,
     marginBottom: 8,
   },
-  emptySub: { fontSize: 15, color: COLORS.textMuted, textAlign: 'center' },
+  emptySub: {
+    fontSize: 15,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+    maxWidth: 300,
+  },
 });

@@ -8,6 +8,7 @@ const productRoutes = require('./routes/product');
 const marketRoutes = require('./routes/market');
 const orderRoutes = require('./routes/order');
 const farmerOrderRoutes = require('./routes/farmerOrders');
+const farmerReferencePricesRoutes = require('./routes/farmerReferencePrices');
 
 if (!process.env.JWT_SECRET) {
   console.error(
@@ -38,6 +39,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/farmer/orders', farmerOrderRoutes);
+app.use('/api/farmer/referencia-precios', farmerReferencePricesRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Error' });

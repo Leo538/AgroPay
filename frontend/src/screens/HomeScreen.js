@@ -1,6 +1,9 @@
-import { useNavigation } from '@react-navigation/native';
-import React, { useMemo, useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Dimensions,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,9 +12,37 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import * as homeAlerts from '../services/homeAlertsService';
+import { labelEstadoPedido } from '../utils/orderEstado';
+import { labelUnidad } from '../utils/unidadLabels';
 
 /** Ancho máximo del contenido en tablet / web (legible y centrado). */
 const CONTENT_MAX_W = 560;
+
+const VENTANA_ALERTAS_HORAS = 48;
+const MAX_VISTA_ALERTAS = 3;
+
+function medidasPopoverAlertas() {
+  const { width: w } = Dimensions.get('window');
+  return {
+    ancho: Math.min(w - 24, 340),
+    topDesdeSafe: 52,
+  };
+}
+
+function fechaReloj(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString('es-EC', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
 
 const COLORS = {
   greenDark: '#2E7D32',
@@ -45,6 +76,11 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
   const [perfilAbierto, setPerfilAbierto] = useState(false);
+  const [alertasRecientes, setAlertasRecientes] = useState(0);
+  const [panelAlertasVisible, setPanelAlertasVisible] = useState(false);
+  const [alertasLista, setAlertasLista] = useState([]);
+  const [alertasListaCargando, setAlertasListaCargando] = useState(false);
+  const [alertasListaError, setAlertasListaError] = useState('');
 
   const esAgricultor = user?.role === 'agricultor';
   const esComprador = user?.role === 'comprador';
@@ -58,9 +94,131 @@ export default function HomeScreen() {
 
   const footerPadBottom = Math.max(insets.bottom, 14);
 
+  const cargarAlertas = useCallback(async () => {
+    if (!user) return;
+    try {
+      if (user.role === 'agricultor') {
+        const n = await homeAlerts.fetchPedidosRecientesCount();
+        setAlertasRecientes(n);
+      } else if (user.role === 'comprador') {
+        const n = await homeAlerts.fetchProductosNuevosCount();
+        setAlertasRecientes(n);
+      } else {
+        setAlertasRecientes(0);
+      }
+    } catch {
+      setAlertasRecientes(0);
+    }
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      cargarAlertas();
+    }, [cargarAlertas])
+  );
+
+  const cargarListaPanelAlertas = useCallback(async () => {
+    if (!user) return;
+    setAlertasListaCargando(true);
+    setAlertasListaError('');
+    try {
+      if (user.role === 'agricultor') {
+        const data = await homeAlerts.fetchPedidosRecientesLista();
+        setAlertasLista(data.items || []);
+      } else if (user.role === 'comprador') {
+        const data = await homeAlerts.fetchProductosRecientesLista();
+        setAlertasLista(data.items || []);
+      } else {
+        setAlertasLista([]);
+      }
+    } catch {
+      setAlertasListaError('No se pudo cargar el listado.');
+      setAlertasLista([]);
+    } finally {
+      setAlertasListaCargando(false);
+    }
+  }, [user]);
+
+  const cerrarPanelAlertas = useCallback(() => {
+    setPanelAlertasVisible(false);
+    setAlertasListaError('');
+  }, []);
+
+  const abrirListaPrincipalAlertas = useCallback(() => {
+    cerrarPanelAlertas();
+    if (esAgricultor) navigation.navigate('PedidosRecibidos');
+    else if (esComprador) navigation.navigate('Mercado');
+  }, [cerrarPanelAlertas, esAgricultor, esComprador, navigation]);
+
+  const abrirItemAlerta = useCallback(
+    (id) => {
+      cerrarPanelAlertas();
+      if (esAgricultor) {
+        navigation.navigate('DetallePedidoAgricultor', { orderId: id });
+      } else if (esComprador) {
+        navigation.navigate('DetalleCompra', { productId: id });
+      }
+    },
+    [cerrarPanelAlertas, esAgricultor, esComprador, navigation]
+  );
+
+  const togglePanelAlertas = useCallback(() => {
+    setPanelAlertasVisible((prev) => {
+      if (prev) {
+        setAlertasListaError('');
+        return false;
+      }
+      cargarListaPanelAlertas();
+      return true;
+    });
+  }, [cargarListaPanelAlertas]);
+
+  const etiquetaCampana = esAgricultor
+    ? `Novedades: ${alertasRecientes} pedido${
+        alertasRecientes === 1 ? '' : 's'
+      } en las últimas ${VENTANA_ALERTAS_HORAS} horas. ${
+        panelAlertasVisible ? 'Cerrar' : 'Abrir'
+      } ventana flotante.`
+    : esComprador
+      ? `Novedades: ${alertasRecientes} producto${
+          alertasRecientes === 1 ? '' : 's'
+        } nuevos en las últimas ${VENTANA_ALERTAS_HORAS} horas. ${
+          panelAlertasVisible ? 'Cerrar' : 'Abrir'
+        } ventana flotante.`
+      : 'Alertas';
+
+  const popMedidas = medidasPopoverAlertas();
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.mainColumn}>
+        {esAgricultor || esComprador ? (
+          <View style={styles.alertsBar}>
+            <View style={styles.alertsBarSpacer} />
+            <Pressable
+              style={({ pressed }) => [
+                styles.alertsBtn,
+                panelAlertasVisible && styles.alertsBtnActive,
+                pressed && styles.alertsBtnPressed,
+              ]}
+              onPress={togglePanelAlertas}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: panelAlertasVisible }}
+              accessibilityLabel={etiquetaCampana}
+            >
+              <Text style={styles.alertsIcon} aria-hidden>
+                🔔
+              </Text>
+              {alertasRecientes > 0 ? (
+                <View style={styles.alertsBadge} accessibilityElementsHidden>
+                  <Text style={styles.alertsBadgeText}>
+                    {alertasRecientes > 9 ? '9+' : String(alertasRecientes)}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+          </View>
+        ) : null}
         <ScrollView
           style={styles.scrollFlex}
           contentContainerStyle={styles.scrollContent}
@@ -88,6 +246,7 @@ export default function HomeScreen() {
         <Pressable
           style={({ pressed }) => [
             styles.card,
+            styles.perfilCard,
             pressed && styles.cardPressed,
           ]}
           onPress={() => setPerfilAbierto((v) => !v)}
@@ -96,8 +255,13 @@ export default function HomeScreen() {
           accessibilityLabel="Mi perfil"
           accessibilityHint="Muestra u oculta tus datos de cuenta"
         >
-          <View style={styles.cardRow}>
-            <View style={styles.cardRowMain}>
+          <View style={styles.perfilHeaderRow}>
+            <View style={styles.perfilAvatarMini}>
+              <Text style={styles.perfilAvatarMiniText} aria-hidden>
+                {iniciales(nombre, apellido)}
+              </Text>
+            </View>
+            <View style={styles.perfilHeaderMain}>
               <Text style={styles.cardTitle}>Mi perfil</Text>
               <Text style={styles.cardSub}>
                 {perfilAbierto
@@ -105,7 +269,7 @@ export default function HomeScreen() {
                   : 'Toca para ver lo que ingresaste'}
               </Text>
             </View>
-            <Text style={styles.chevron} aria-hidden>
+            <Text style={styles.perfilHeaderChevron} aria-hidden>
               {perfilAbierto ? '▾' : '▸'}
             </Text>
           </View>
@@ -154,7 +318,7 @@ export default function HomeScreen() {
                     Publicar, editar o quitar lo que ofreces
                   </Text>
                 </View>
-                <Text style={styles.chevronMuted} aria-hidden>
+                <Text style={styles.chevron} aria-hidden>
                   ▸
                 </Text>
               </View>
@@ -162,6 +326,32 @@ export default function HomeScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.card,
+                styles.cardLink,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={() => navigation.navigate('PreciosReferencia')}
+              accessibilityRole="button"
+              accessibilityLabel="Precios de referencia de mercado"
+            >
+              <View style={styles.cardRow}>
+                <Text style={styles.linkIcon} aria-hidden>
+                  📊
+                </Text>
+                <View style={styles.cardRowMain}>
+                  <Text style={styles.cardTitle}>Precios de referencia</Text>
+                  <Text style={styles.cardSub} numberOfLines={2}>
+                    Lista de precios oficial del mercado mayorista (PDF)
+                  </Text>
+                </View>
+                <Text style={styles.chevron} aria-hidden>
+                  ▸
+                </Text>
+              </View>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.card,
+                styles.cardLink,
                 pressed && styles.cardPressed,
               ]}
               onPress={() => navigation.navigate('PedidosRecibidos')}
@@ -178,7 +368,7 @@ export default function HomeScreen() {
                     Ver comprobantes, validación del sistema y confirmar pagos
                   </Text>
                 </View>
-                <Text style={styles.chevronMuted} aria-hidden>
+                <Text style={styles.chevron} aria-hidden>
                   ▸
                 </Text>
               </View>
@@ -208,7 +398,7 @@ export default function HomeScreen() {
                     Explora el mercado, elige cantidad y arma tu pedido
                   </Text>
                 </View>
-                <Text style={styles.chevronMuted} aria-hidden>
+                <Text style={styles.chevron} aria-hidden>
                   ▸
                 </Text>
               </View>
@@ -216,6 +406,7 @@ export default function HomeScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.card,
+                styles.cardLink,
                 pressed && styles.cardPressed,
               ]}
               onPress={() => navigation.navigate('MisPedidos')}
@@ -232,7 +423,7 @@ export default function HomeScreen() {
                     Pagar, subir comprobante o QR y revisar estado
                   </Text>
                 </View>
-                <Text style={styles.chevronMuted} aria-hidden>
+                <Text style={styles.chevron} aria-hidden>
                   ▸
                 </Text>
               </View>
@@ -266,6 +457,189 @@ export default function HomeScreen() {
           </View>
         </View>
       </View>
+
+      {esAgricultor || esComprador ? (
+        <Modal
+          visible={panelAlertasVisible}
+          transparent
+          animationType="fade"
+          statusBarTranslucent
+          onRequestClose={cerrarPanelAlertas}
+        >
+          <View style={styles.modalRoot}>
+            <Pressable
+              style={styles.modalBackdrop}
+              onPress={cerrarPanelAlertas}
+              accessibilityLabel="Cerrar novedades"
+              accessibilityRole="button"
+            />
+            <View
+              style={[
+                styles.alertasPopover,
+                {
+                  top: insets.top + popMedidas.topDesdeSafe,
+                  width: popMedidas.ancho,
+                },
+              ]}
+            >
+              <View style={styles.alertasPanelHeaderRow}>
+                <View style={styles.alertasPanelHeaderText}>
+                  <Text style={styles.alertasPanelTitle}>
+                    {esAgricultor
+                      ? 'Pedidos recientes'
+                      : 'Novedades en el mercado'}
+                  </Text>
+                  <Text style={styles.alertasPanelSub}>
+                    Últimas {VENTANA_ALERTAS_HORAS} h
+                  </Text>
+                </View>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.alertasCloseBtn,
+                    pressed && styles.alertasCloseBtnPressed,
+                  ]}
+                  onPress={cerrarPanelAlertas}
+                  hitSlop={14}
+                  accessibilityLabel="Cerrar"
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.alertasCloseText}>✕</Text>
+                </Pressable>
+              </View>
+
+              {alertasListaCargando ? (
+                <View style={styles.alertasPanelLoading}>
+                  <ActivityIndicator color={COLORS.greenDark} />
+                </View>
+              ) : alertasListaError ? (
+                <Text style={styles.alertasPanelError}>{alertasListaError}</Text>
+              ) : alertasLista.length === 0 ? (
+                <View style={styles.alertasSinLista}>
+                  <Text style={styles.alertasPanelEmpty}>
+                    No hay novedades en esta ventana.
+                  </Text>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.alertasCtaPrincipal,
+                      pressed && styles.alertasCtaPrincipalPressed,
+                    ]}
+                    onPress={abrirListaPrincipalAlertas}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      esComprador
+                        ? 'Abrir mercado'
+                        : 'Abrir pedidos recibidos'
+                    }
+                  >
+                    <Text style={styles.alertasCtaPrincipalText}>
+                      {esComprador ? 'Ir al mercado' : 'Ver pedidos recibidos'}
+                    </Text>
+                    <Text style={styles.alertasCtaPrincipalArrow}>→</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View>
+                  {alertasLista.slice(0, MAX_VISTA_ALERTAS).map((row, i, arr) => (
+                    <Pressable
+                      key={row._id}
+                      style={({ pressed }) => [
+                        styles.alertasRow,
+                        i === arr.length - 1 && styles.alertasRowLastPreview,
+                        pressed && styles.alertasRowPressed,
+                      ]}
+                      onPress={() => abrirItemAlerta(row._id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        esAgricultor
+                          ? `Pedido ${row.producto}`
+                          : `Producto ${row.nombre}`
+                      }
+                    >
+                      {esAgricultor ? (
+                        <>
+                          <Text
+                            style={styles.alertasRowTitle}
+                            numberOfLines={2}
+                          >
+                            {row.producto}
+                          </Text>
+                          <Text
+                            style={styles.alertasRowMeta}
+                            numberOfLines={1}
+                          >
+                            {row.comprador}
+                          </Text>
+                          <View style={styles.alertasRowFoot}>
+                            <Text style={styles.alertasRowEstado}>
+                              {labelEstadoPedido(row.estado)}
+                            </Text>
+                            <Text style={styles.alertasRowTotal}>
+                              ${Number(row.total).toFixed(2)}
+                            </Text>
+                          </View>
+                          <Text style={styles.alertasRowTime}>
+                            {fechaReloj(row.createdAt)}
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <Text
+                            style={styles.alertasRowTitle}
+                            numberOfLines={2}
+                          >
+                            {row.nombre}
+                          </Text>
+                          <Text
+                            style={styles.alertasRowMeta}
+                            numberOfLines={1}
+                          >
+                            {row.vendedor}
+                          </Text>
+                          <View style={styles.alertasRowFoot}>
+                            <Text style={styles.alertasRowPrecio}>
+                              ${Number(row.precio).toFixed(2)} ·{' '}
+                              {labelUnidad(row.unidad)}
+                            </Text>
+                          </View>
+                          <Text style={styles.alertasRowTime}>
+                            {fechaReloj(row.createdAt)}
+                          </Text>
+                        </>
+                      )}
+                    </Pressable>
+                  ))}
+                  {alertasLista.length > MAX_VISTA_ALERTAS ? (
+                    <Text style={styles.alertasMas}>
+                      +{alertasLista.length - MAX_VISTA_ALERTAS} más en las
+                      últimas {VENTANA_ALERTAS_HORAS} h
+                    </Text>
+                  ) : null}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.alertasCtaPrincipal,
+                      pressed && styles.alertasCtaPrincipalPressed,
+                    ]}
+                    onPress={abrirListaPrincipalAlertas}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      esComprador
+                        ? 'Abrir mercado completo'
+                        : 'Abrir lista de pedidos'
+                    }
+                  >
+                    <Text style={styles.alertasCtaPrincipalText}>
+                      {esComprador
+                        ? 'Abrir mercado'
+                        : 'Ver todos los pedidos'}
+                    </Text>
+                    <Text style={styles.alertasCtaPrincipalArrow}>→</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          </View>
+        </Modal>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -277,6 +651,232 @@ const styles = StyleSheet.create({
   },
   mainColumn: {
     flex: 1,
+  },
+  alertsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 2,
+    width: '100%',
+    maxWidth: CONTENT_MAX_W,
+    alignSelf: 'center',
+    minHeight: 44,
+  },
+  alertsBarSpacer: { flex: 1 },
+  alertsBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  alertsBtnPressed: {
+    backgroundColor: COLORS.greenSoft,
+    opacity: 0.95,
+  },
+  alertsBtnActive: {
+    borderColor: COLORS.greenDark,
+    backgroundColor: COLORS.greenSoft,
+  },
+  alertsIcon: { fontSize: 22 },
+  alertsBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: '#C62828',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  alertsBadgeText: {
+    color: COLORS.white,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  modalRoot: {
+    flex: 1,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  alertasPopover: {
+    position: 'absolute',
+    right: 12,
+    zIndex: 2,
+    backgroundColor: COLORS.white,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 14,
+  },
+  alertasPanelHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
+    gap: 8,
+  },
+  alertasPanelHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  alertasPanelTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.greenDark,
+    marginBottom: 2,
+  },
+  alertasPanelSub: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontWeight: '600',
+  },
+  alertasCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F5F5',
+    marginTop: -4,
+  },
+  alertasCloseBtnPressed: {
+    backgroundColor: COLORS.greenSoft,
+  },
+  alertasCloseText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+    lineHeight: 20,
+  },
+  alertasPanelLoading: {
+    paddingVertical: 28,
+    alignItems: 'center',
+  },
+  alertasPanelError: {
+    fontSize: 14,
+    color: '#C62828',
+    paddingVertical: 12,
+    textAlign: 'center',
+  },
+  alertasPanelEmpty: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    paddingVertical: 8,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  alertasSinLista: {
+    alignItems: 'stretch',
+  },
+  alertasMas: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  alertasCtaPrincipal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: COLORS.yellow,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  alertasCtaPrincipalPressed: {
+    opacity: 0.92,
+  },
+  alertasCtaPrincipalText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.greenDark,
+  },
+  alertasCtaPrincipalArrow: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.greenDark,
+  },
+  alertasRow: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  alertasRowLastPreview: {
+    borderBottomWidth: 0,
+  },
+  alertasRowPressed: {
+    backgroundColor: COLORS.greenSoft,
+    borderRadius: 10,
+  },
+  alertasRowTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 3,
+  },
+  alertasRowMeta: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginBottom: 6,
+  },
+  alertasRowFoot: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 4,
+  },
+  alertasRowEstado: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.greenMid,
+    flex: 1,
+    minWidth: 120,
+  },
+  alertasRowTotal: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.text,
+  },
+  alertasRowPrecio: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.greenDark,
+  },
+  alertasRowTime: {
+    fontSize: 11,
+    color: COLORS.textMuted,
   },
   scrollFlex: {
     flex: 1,
@@ -368,13 +968,51 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
+  /** Acento lateral en accesos (sin amarillo; alineado al verde de la pantalla). */
   cardLink: {
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.yellow,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.greenMid,
   },
   cardPressed: {
     opacity: 0.92,
     transform: [{ scale: 0.995 }],
+  },
+  perfilCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.greenDark,
+    paddingVertical: 14,
+  },
+  perfilHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 52,
+  },
+  perfilAvatarMini: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.greenDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.yellow,
+  },
+  perfilAvatarMiniText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  perfilHeaderMain: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 6,
+  },
+  perfilHeaderChevron: {
+    fontSize: 18,
+    color: COLORS.greenMid,
+    fontWeight: '700',
+    paddingHorizontal: 2,
   },
   cardRow: {
     flexDirection: 'row',
@@ -401,11 +1039,6 @@ const styles = StyleSheet.create({
     color: COLORS.greenMid,
     fontWeight: '700',
     paddingHorizontal: 4,
-  },
-  chevronMuted: {
-    fontSize: 18,
-    color: COLORS.textMuted,
-    fontWeight: '700',
   },
   linkIcon: {
     fontSize: 28,

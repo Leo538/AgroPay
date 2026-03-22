@@ -20,6 +20,16 @@ export function colorEstadoPedido(estado) {
   return '#757575';
 }
 
+/** Fondo suave para chips de estado (hex #RRGGBB → rgba). */
+export function fondoSuaveEstadoPedido(estado) {
+  const hex = colorEstadoPedido(estado).replace('#', '');
+  if (hex.length !== 6) return 'rgba(117, 117, 117, 0.1)';
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},0.14)`;
+}
+
 /** El agricultor puede confirmar pago o rechazar */
 export function agricultorPuedeDecidirPago(estado) {
   return estado === 'pre_validado' || estado === 'comprobante_enviado';

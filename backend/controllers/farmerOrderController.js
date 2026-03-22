@@ -159,10 +159,73 @@ async function marcarEntregado(req, res) {
   }
 }
 
+/** Pedidos creados en las últimas N horas (solo cuenta “recientes”). */
+const VENTANA_ALERTAS_HORAS = 48;
+
+async function alertsResumen(req, res) {
+  try {
+    const ms = VENTANA_ALERTAS_HORAS * 60 * 60 * 1000;
+    const desde = new Date(Date.now() - ms);
+    const pedidosRecientes = await Order.countDocuments({
+      farmer: req.userId,
+      createdAt: { $gte: desde },
+    });
+    return res.json({
+      ventanaHoras: VENTANA_ALERTAS_HORAS,
+      pedidosRecientes,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error al contar pedidos recientes.' });
+  }
+}
+
+/** Lista breve de pedidos recientes (acceso rápido en inicio). */
+async function alertsRecientesLista(req, res) {
+  try {
+    const ms = VENTANA_ALERTAS_HORAS * 60 * 60 * 1000;
+    const desde = new Date(Date.now() - ms);
+    const orders = await Order.find({
+      farmer: req.userId,
+      createdAt: { $gte: desde },
+    })
+      .sort({ createdAt: -1 })
+      .limit(25)
+      .populate('buyer', 'nombre apellido')
+      .lean();
+
+    const items = orders.map((o) => {
+      const line = o.items?.[0];
+      const b = o.buyer;
+      const comprador = b
+        ? `${b.nombre || ''} ${b.apellido || ''}`.trim()
+        : 'Comprador';
+      return {
+        _id: String(o._id),
+        producto: line?.nombre || 'Pedido',
+        total: o.total,
+        estado: o.estado,
+        comprador,
+        createdAt: o.createdAt,
+      };
+    });
+
+    return res.json({
+      ventanaHoras: VENTANA_ALERTAS_HORAS,
+      items,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error al listar pedidos recientes.' });
+  }
+}
+
 module.exports = {
   listReceived,
   getOne,
   confirmarPago,
   rechazarPedido,
   marcarEntregado,
+  alertsResumen,
+  alertsRecientesLista,
 };

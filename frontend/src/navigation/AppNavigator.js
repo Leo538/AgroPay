@@ -4,6 +4,7 @@ import BuyerProductDetailScreen from '../screens/BuyerProductDetailScreen';
 import CheckoutOrderScreen from '../screens/CheckoutOrderScreen';
 import FarmerOrderDetailScreen from '../screens/FarmerOrderDetailScreen';
 import FarmerOrdersScreen from '../screens/FarmerOrdersScreen';
+import FarmerReferencePricesScreen from '../screens/FarmerReferencePricesScreen';
 import HomeScreen from '../screens/HomeScreen';
 import MarketScreen from '../screens/MarketScreen';
 import MyOrdersScreen from '../screens/MyOrdersScreen';
@@ -55,6 +56,11 @@ export default function AppNavigator() {
         name="PedidosRecibidos"
         component={FarmerOrdersScreen}
         options={{ title: '🛒 Pedidos recibidos' }}
+      />
+      <Stack.Screen
+        name="PreciosReferencia"
+        component={FarmerReferencePricesScreen}
+        options={{ title: '📊 Precios de referencia' }}
       />
       <Stack.Screen
         name="DetallePedidoAgricultor"

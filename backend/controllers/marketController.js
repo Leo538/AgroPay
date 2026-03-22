@@ -64,4 +64,73 @@ async function getProduct(req, res) {
   }
 }
 
-module.exports = { listProducts, getProduct };
+const VENTANA_ALERTAS_HORAS = 48;
+
+/** Productos publicados en las últimas N horas con stock (novedades en mercado). */
+async function alertsResumen(req, res) {
+  try {
+    const ms = VENTANA_ALERTAS_HORAS * 60 * 60 * 1000;
+    const desde = new Date(Date.now() - ms);
+    const productosNuevos = await Product.countDocuments({
+      cantidadDisponible: { $gt: 0 },
+      createdAt: { $gte: desde },
+    });
+    return res.json({
+      ventanaHoras: VENTANA_ALERTAS_HORAS,
+      productosNuevos,
+    });
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ message: 'Error al contar productos nuevos en el mercado.' });
+  }
+}
+
+/** Lista breve de productos nuevos en mercado (acceso rápido en inicio). */
+async function alertsRecientesLista(req, res) {
+  try {
+    const ms = VENTANA_ALERTAS_HORAS * 60 * 60 * 1000;
+    const desde = new Date(Date.now() - ms);
+    const products = await Product.find({
+      cantidadDisponible: { $gt: 0 },
+      createdAt: { $gte: desde },
+    })
+      .sort({ createdAt: -1 })
+      .limit(25)
+      .populate('farmer', FARMER_FIELDS)
+      .lean();
+
+    const items = products.map((p) => {
+      const f = p.farmer;
+      const vendedor = f
+        ? `${f.nombre || ''} ${f.apellido || ''}`.trim()
+        : 'Agricultor';
+      return {
+        _id: String(p._id),
+        nombre: p.nombre,
+        precio: p.precio,
+        unidad: p.unidad,
+        vendedor,
+        createdAt: p.createdAt,
+      };
+    });
+
+    return res.json({
+      ventanaHoras: VENTANA_ALERTAS_HORAS,
+      items,
+    });
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ message: 'Error al listar productos nuevos en el mercado.' });
+  }
+}
+
+module.exports = {
+  listProducts,
+  getProduct,
+  alertsResumen,
+  alertsRecientesLista,
+};
