@@ -321,15 +321,6 @@ export default function FarmerOrderDetailScreen({ route, navigation }) {
           )}
         </View>
 
-        {order.comprobanteQrPayload ? (
-          <View style={styles.qrBox}>
-            <Text style={styles.label}>Payload QR</Text>
-            <Text selectable style={styles.qrText} numberOfLines={10}>
-              {order.comprobanteQrPayload}
-            </Text>
-          </View>
-        ) : null}
-
         {mostrarDecision ? (
           <>
             {order.estado === 'comprobante_enviado' ? (
@@ -541,13 +532,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEEEEE',
     marginBottom: 4,
   },
-  qrBox: {
-    backgroundColor: '#F5F5F5',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  qrText: { fontSize: 11, color: COLORS.textMuted },
   actions: { gap: 10, marginTop: 8 },
   btnOk: {
     backgroundColor: COLORS.yellow,

@@ -262,16 +262,14 @@ export default function CheckoutOrderScreen({ route, navigation }) {
             {previewQr ? (
               <View style={styles.qrBox}>
                 <View style={styles.qrBoxHeader}>
-                  <Text style={styles.qrBoxTitle}>QR escaneado</Text>
+                  <Text style={styles.qrBoxTitle}>Código leído</Text>
                   <Pressable onPress={() => setPreviewQr('')}>
                     <Text style={styles.qrBoxClear}>Quitar</Text>
                   </Pressable>
                 </View>
-                <ScrollView style={styles.qrScroll} nestedScrollEnabled>
-                  <Text selectable style={styles.qrText}>
-                    {previewQr}
-                  </Text>
-                </ScrollView>
+                <Text style={styles.qrBoxMsg}>
+                  Listo para enviar. Al confirmar, el sistema tomará monto y referencia del pago.
+                </Text>
               </View>
             ) : null}
 
@@ -430,14 +428,6 @@ export default function CheckoutOrderScreen({ route, navigation }) {
                 </Text>
               )
             ) : null}
-            {order.comprobanteQrPayload ? (
-              <View style={styles.qrDoneBox}>
-                <Text style={styles.qrDoneLabel}>QR / payload</Text>
-                <Text selectable style={styles.qrDoneText} numberOfLines={8}>
-                  {order.comprobanteQrPayload}
-                </Text>
-              </View>
-            ) : null}
           </View>
         )}
 
@@ -579,7 +569,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#A5D6A7',
-    maxHeight: 160,
   },
   qrBoxHeader: {
     flexDirection: 'row',
@@ -589,11 +578,10 @@ const styles = StyleSheet.create({
   },
   qrBoxTitle: { fontWeight: '800', color: COLORS.greenDark, fontSize: 15 },
   qrBoxClear: { fontWeight: '700', color: '#C62828', fontSize: 14 },
-  qrScroll: { maxHeight: 100 },
-  qrText: {
-    fontSize: 12,
-    color: '#212121',
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+  qrBoxMsg: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    lineHeight: 20,
   },
   imgPreviewWrap: { marginBottom: 12 },
   preview: {
@@ -729,24 +717,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.grayLight,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  qrDoneBox: {
-    marginTop: 14,
-    padding: 12,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-  },
-  qrDoneLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.greenDark,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  qrDoneText: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
   },
   secondary: {
     paddingVertical: 14,
