@@ -1,77 +1,98 @@
-# AgroPay
+<p align="center">
+  <img src="./docs/assets/banner.svg" alt="AgroPay · Mercado móvil para agricultores y compradores" width="100%">
+</p>
 
-App React Native (Expo) + API Node.js (Express) + MongoDB.
+<p align="center">
+  <a href="#funcionalidades">Funcionalidades</a> · <a href="#tecnologías">Tecnologías</a> · <a href="#ejecutar-en-local">Ejecutar en local</a> · <a href="#capturas">Capturas</a>
+</p>
 
-## Requisitos
+Aplicación móvil que conecta agricultores y compradores. Reúne publicación de productos, stock, pedidos y revisión de comprobantes en un flujo adaptado a cada rol.
 
-- [Node.js](https://nodejs.org/) LTS
-- [MongoDB](https://www.mongodb.com/) en local o [Atlas](https://www.mongodb.com/atlas) (URI en `MONGO_URI`)
+## Funcionalidades
 
-## Backend
+- **Agricultor.** Publica productos, administra existencias, revisa pedidos y marca entregas.
+- **Comprador.** Explora el mercado, crea pedidos y adjunta comprobantes mediante QR, cámara o imagen.
+- **Seguimiento.** Presenta novedades del mercado, pedidos recientes y cambios de estado.
+- **Validación de comprobantes.** Usa OCR y datos del QR para comprobar monto y referencia. El agricultor revisa los comprobantes que pasan al flujo de confirmación.
+- **Precios de referencia.** Consulta la lista publicada por EP-EMA para el panel del agricultor.
 
-1. Copia variables de entorno:
+## Tecnologías
 
-   ```bash
-   cd backend
-   copy .env.example .env
-   ```
+| Tecnología | Uso |
+| --- | --- |
+| Expo SDK 54, React Native 0.81 y React 19 | Aplicación móvil y vista web de desarrollo |
+| React Navigation y AsyncStorage | Navegación por rol y persistencia de sesión |
+| Node.js y Express 4 | API de autenticación, productos, mercado y pedidos |
+| MongoDB y Mongoose 8 | Usuarios, productos, disponibilidad y pedidos |
+| JWT y bcrypt | Autenticación y gestión de contraseñas |
+| Tesseract.js | Extracción de texto de comprobantes |
 
-   Edita `.env`: `JWT_SECRET` obligatorio (cualquier cadena larga en desarrollo), `MONGO_URI` si tu Mongo no es local.
+## Ejecutar en local
 
-2. Instala e inicia:
+Necesitas **Node.js 20.19.4 o superior** con npm, **MongoDB** local o remoto y un cliente Expo compatible con el SDK del proyecto para probar en móvil.
 
-   ```bash
-   npm install
-   npm run dev
-   ```
+### Iniciar la API
 
-   Por defecto escucha en **http://localhost:3000** (también en la red local, `0.0.0.0`). Rutas de auth: `POST /api/auth/register`, `POST /api/auth/login`.
+Abre una terminal en la raíz del repositorio.
 
-   **Productos (solo agricultor, con JWT):** prefijo `/api/products` — `GET /mine`, `POST /`, `PUT /:id`, `DELETE /:id` (header `Authorization: Bearer <token>`).
+```powershell
+cd backend
+npm ci
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```
 
-   **Mercado y pedidos (solo comprador, con JWT):**
-   - `GET /api/market/alerts/resumen` — `productosNuevos` publicados en las **últimas 48 h** con stock (novedades).
-   - `GET /api/market/alerts/recientes` — lista breve (máx. 25) de esos productos para el panel de inicio.
-   - `GET /api/market/products` — catálogo (solo ítems con stock mayor a 0; incluye datos básicos del vendedor).
-   - `GET /api/market/products/:id` — detalle para comprar.
-   - `POST /api/orders` — cuerpo `{ productId, cantidad, metodoPago? }` (reserva stock al crear).
-   - `GET /api/orders/mine`, `GET /api/orders/:id`, `PUT /api/orders/:id/comprobante` — el comprador envía `comprobanteUrl` y/o `comprobanteQrPayload`, más opcionalmente `montoDeclarado` y `referenciaDeclarada`. Con **imagen** (`data:image/...` JPEG/PNG/GIF/WebP) se comprueban cabeceras binarias; el **monto del formulario no sustituye** al leído por OCR/QR. Si monto+ref+coinciden y no hay duplicado → **`pre_validado`**; si hay imagen, ref OK y sin duplicado pero **no** se pudo leer el monto del comprobante → **`comprobante_enviado`** (el agricultor revisa); en el resto de fallos → **`rechazado`** (sistema) y **restituye stock**.
-   - **Estados del pedido:** `pendiente` → `pre_validado` o `comprobante_enviado` → `pagado` → `entregado`, o `rechazado` (sistema o agricultor).
-   - **Agricultor (JWT):** prefijo `/api/farmer/orders` — `GET /` (lista), `GET /alerts/resumen` — conteo `pedidosRecientes` (48 h), `GET /alerts/recientes` — lista breve para panel de inicio, `GET /:id`, `PUT /:id/confirmar` (a `pagado`), `PUT /:id/rechazar` (body `{ motivo }`, a `rechazado`, restituye stock), `PUT /:id/entregado` (a `entregado`). OCR de imagen: campo `ocrResumen` reservado; hoy solo mensaje informativo si solo hay imagen.
-   - **Precios de referencia (solo agricultor):** `GET /api/farmer/referencia-precios` — devuelve `listaOficialEma` leyendo [lista de precios EP-EMA](https://ambato-ema.gob.ec/listaprecios/): **PDF con fecha más reciente** (`precios-AAAA-MM-DD.pdf`, revisión `-N` si hay varias el mismo día). Caché ~12 min en servidor.
+Configura `MONGO_URI`, `JWT_SECRET` y, si necesitas otro puerto, `PORT` en `backend/.env`.
 
-   El registro pide **nombre, apellido, celular**, correo, contraseña y rol (`agricultor` / `comprador`). Si cambiaste el modelo de usuario, los documentos viejos en Mongo sin esos campos pueden seguir iniciando sesión, pero los **usuarios nuevos** deben registrarse otra vez con el formulario actual.
+```bash
+npm run dev
+```
 
-   **Importante:** MongoDB Atlas solo guarda datos. Si ves `ERR_CONNECTION_REFUSED` en el móvil o en web, el **backend tiene que estar encendido** en otra terminal. Sin eso no hay registro ni login.
+La API usa el puerto `3000` de forma predeterminada. Comprueba la respuesta en [`/health`](http://localhost:3000/health).
 
-3. Comprueba salud: abre en el navegador `http://localhost:3000/health` (debe responder `{"ok":true}`).
+### Iniciar la aplicación
 
-## Frontend (Expo)
+En otra terminal desde la raíz, ejecuta el servidor de Expo.
 
-1. En otra terminal:
+```bash
+cd frontend
+npm ci
+npm start
+```
 
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+**Navegador.** Pulsa `w` en Expo o ejecuta `npm run web` desde `frontend/`.
 
-   (Equivale a `npm start` o `npx expo start`.)
+**Teléfono.** Conecta el teléfono y el computador a la misma red. Si la detección automática no alcanza la API, pon `EXPO_PUBLIC_API_URL` en `frontend/.env` con la dirección LAN del computador y el puerto del backend. Usa el origen completo, por ejemplo `http://192.168.1.20:3000`, y reinicia Expo. `EXPO_PUBLIC_API_PORT` permite ajustar el puerto de la detección automática.
 
-   **Navegador (tecla `w`):** hace falta `react-dom`, `react-native-web` y `@expo/metro-runtime` (instálalos con `npx expo install react-dom react-native-web @expo/metro-runtime` si Expo te lo pide). Luego `npm run dev` y pulsa `w`, o `npm run web`.
+## Compras y API
 
-   En **web**, `Alert` de React Native no muestra diálogos (es un no-op). Confirmaciones como **Eliminar producto** usan `window.confirm` vía `frontend/src/utils/confirmDialog.js`.
+El comprador crea un pedido del catálogo con stock disponible y adjunta un comprobante. El pedido puede quedar `pre_validado` o `comprobante_enviado` para revisión. El agricultor confirma el pago, rechaza el comprobante o registra la entrega. Un rechazo devuelve las unidades reservadas al stock.
 
-2. La URL del API se resuelve sola en **Expo Go** (usa la misma IP que Metro). Si falla, crea `frontend/.env` con `EXPO_PUBLIC_API_URL=http://TU_IP:3000` y reinicia Expo (`Ctrl+C` y `npx expo start -c`). En **web** usa `http://localhost:3000` (el backend en tu PC).
+- **Autenticación** mediante `POST /api/auth/register` y `POST /api/auth/login`.
+- **Productos del agricultor** en `/api/products`.
+- **Mercado del comprador** en `/api/market`.
+- **Compras y comprobantes** en `/api/orders`.
+- **Revisión de pedidos** en `/api/farmer/orders`.
+- **Precios de referencia** en `/api/farmer/referencia-precios`.
+
+Las rutas de productos, mercado y pedidos requieren una sesión con el rol correspondiente.
 
 ## Estructura
 
-- `backend/` — Express, Mongoose, JWT, modelo `User` (nombre, apellido, telefono, email, role), rutas `/api/auth`
-- `frontend/` — Expo, `App.js` + `AuthContext` + sesión en `authStorage.js`
-- `frontend/src/screens/LoginScreen.js` — login y registro (al registrarte vuelves al login; la sesión solo se guarda al **iniciar sesión**)
-- `frontend/src/screens/HomeScreen.js` — bienvenida con nombre y datos básicos (base para vistas agricultor/comprador)
-- `frontend/src/navigation/AppNavigator.js` — inicio, productos (agricultor), mercado y pedidos (comprador)
-- Comprador: mercado → pedido → pago → comprobante (QR / imagen / cámara + monto y referencia si hace falta) → estados en **Mis pedidos**.
-- Agricultor: **Precios de referencia** (PDF oficial EP-EMA), **Pedidos recibidos** → detalle → confirmar pago, rechazar o marcar entregado.
+- [`frontend/`](frontend) contiene la aplicación Expo.
+- [`frontend/src/screens/`](frontend/src/screens) incluye las pantallas de acceso, mercado y pedidos.
+- [`backend/routes/`](backend/routes) define los endpoints de la API.
+- [`backend/models/`](backend/models) define los esquemas de MongoDB.
+- [`backend/services/`](backend/services) reúne OCR, revisión de comprobantes y consulta de precios.
 
-**Migración MongoDB:** si tenías pedidos con `pendiente_comprobante` / `comprobante_enviado`, actualízalos a `pendiente` / `pre_validado` o borra la colección `orders` en desarrollo.
+## Capturas
+
+<table width="100%">
+  <tr>
+    <td width="50%" valign="top" align="center">
+      <a href="./docs/assets/capturas/agropay.png"><img src="./docs/assets/capturas/agropay.png" alt="Inicio de sesión" width="238"></a><br><sub>Inicio de sesión</sub>
+    </td>
+    <td width="50%" valign="top" align="center">
+      <a href="./docs/assets/capturas/agropay-registro.png"><img src="./docs/assets/capturas/agropay-registro.png" alt="Registro de una cuenta" width="238"></a><br><sub>Registro de una cuenta</sub>
+    </td>
+  </tr>
+</table>
