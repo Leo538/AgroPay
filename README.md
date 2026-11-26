@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="./docs/assets/banner.svg" alt="AgroPay · Mercado móvil para agricultores y compradores" width="100%">
+  <picture>
+    <source media="(prefers-reduced-motion: no-preference)" srcset="./docs/assets/banner-motion.svg">
+    <img src="./docs/assets/banner.svg" width="820" alt="AgroPay · Mercado móvil para agricultores y compradores">
+  </picture>
 </p>
 
 <p align="center">
@@ -86,13 +89,7 @@ Las rutas de productos, mercado y pedidos requieren una sesión con el rol corre
 
 ## Capturas
 
-<table width="100%">
-  <tr>
-    <td width="50%" valign="top" align="center">
-      <a href="./docs/assets/capturas/agropay.png"><img src="./docs/assets/capturas/agropay.png" alt="Inicio de sesión" width="238"></a><br><sub>Inicio de sesión</sub>
-    </td>
-    <td width="50%" valign="top" align="center">
-      <a href="./docs/assets/capturas/agropay-registro.png"><img src="./docs/assets/capturas/agropay-registro.png" alt="Registro de una cuenta" width="238"></a><br><sub>Registro de una cuenta</sub>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <a href="./docs/assets/capturas/agropay.png"><img src="./docs/assets/vistas/agropay.svg" width="304" alt="Inicio de sesión"></a>
+  <a href="./docs/assets/capturas/agropay-registro.png"><img src="./docs/assets/vistas/agropay-registro.svg" width="304" alt="Registro de una cuenta"></a>
+</p>
